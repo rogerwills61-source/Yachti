@@ -1619,7 +1619,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.4.0 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.4.1 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1851,7 +1851,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.4.0';
+  const APP_VERSION = '1.4.1';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const SESSION_ROOM_KEY = 'yachti_v1_room_session';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
@@ -5304,9 +5304,13 @@
     if (!active) return false;
     if (active.isAI) return false;
     if (localOverrideActive) return true;
-    // Mixed-device rule: seats claimed by ME or unclaimed (null) are controllable locally
     if (active.claimedByDeviceId === MY_DEVICE_ID) return true;
-    if (active.claimedByDeviceId === null) return true;
+    if (active.claimedByDeviceId === null) {
+      // In local Pass-and-Play all seats are local; in online rooms, unclaimed seats belong to the Host (Seat 0)
+      if (state.roomId === 'LOCAL') return true;
+      const mySeats = getMyClaimedPlayerIndices();
+      return mySeats.length === 0 || mySeats.includes(0);
+    }
     return false;
   }
 
@@ -7201,11 +7205,22 @@
     $('btnLeaveRoom').addEventListener('click', () => {
       hostAwaitingPeerForNewGame = false;
       roomQrCollapsed = false;
+      clearScoreReviewPause();
+      const mySeats = getMyClaimedPlayerIndices();
+      const mySeatIdx = mySeats.length ? mySeats[0] : 0;
       const humanCount = state.players.filter(p => !p.isAI).length;
       SyncEngine.disconnect({ announceLeave: true, clearRetained: humanCount <= 2 });
       state.roomId = 'LOCAL';
       state.sessionToken = randomHex(16);
       state.players.forEach(p => { p.claimedByDeviceId = null; });
+      if (state.activePlayerIndex !== mySeatIdx && state.players[mySeatIdx]) {
+        state.activePlayerIndex = mySeatIdx;
+        state.turnState = createFreshTurnState();
+        DiceEngine.syncFromState(state.turnState, true);
+      }
+      const mySeatDone = state.players[mySeatIdx] && ALL_CATS.every(c => state.players[mySeatIdx].scores[c.key] !== null);
+      userViewOverride = mySeatDone ? 'all' : null;
+      localOverrideActive = false;
       history.replaceState(null, '', location.pathname);
       saveStateLocal();
       renderSetupModal();
@@ -7364,28 +7379,42 @@
       },
       onPeerLeft: (leaverId) => {
         if (!state || state.roomId === 'LOCAL') return;
-        const leavingSeat = state.players.find(p => p.claimedByDeviceId === leaverId);
+        const leavingIdx = state.players.findIndex(p => p.claimedByDeviceId === leaverId);
+        const leavingSeat = leavingIdx >= 0 ? state.players[leavingIdx] : null;
         const leaverName = leavingSeat ? leavingSeat.name : 'Other player';
         const humanCount = state.players.filter(p => !p.isAI).length;
+        const mySeats = getMyClaimedPlayerIndices();
+        const mySeatIdx = mySeats.length ? mySeats[0] : (leavingIdx === 0 && state.players.length > 1 ? 1 : 0);
 
         if (humanCount <= 2) {
-          // 2-player room: closing the app disconnects the room completely so a fresh room is established next time
+          // 2-player room: closing/disconnecting closes the room while keeping THIS device on its own scorecard & name
           hostAwaitingPeerForNewGame = false;
+          roomQrCollapsed = false;
           clearScoreReviewPause();
           SyncEngine.disconnect({ announceLeave: false, clearRetained: true });
           state.roomId = 'LOCAL';
           state.sessionToken = randomHex(16);
           state.players.forEach(p => { p.claimedByDeviceId = null; });
-          userViewOverride = null;
+          if (state.activePlayerIndex !== mySeatIdx && state.players[mySeatIdx]) {
+            state.activePlayerIndex = mySeatIdx;
+            state.turnState = createFreshTurnState();
+            DiceEngine.syncFromState(state.turnState, true);
+          }
+          const mySeatDone = state.players[mySeatIdx] && ALL_CATS.every(c => state.players[mySeatIdx].scores[c.key] !== null);
+          userViewOverride = mySeatDone ? 'all' : null;
           localOverrideActive = false;
           history.replaceState(null, '', location.pathname);
           saveStateLocal();
+          if ($('modalSetup').classList.contains('open')) renderSetupModal();
           renderAll();
-          showToast(`${leaverName} closed the app — room disconnected`, 4200);
+          showToast(`${leaverName} disconnected — room closed`, 4200);
         } else {
-          // 3+ player room: disconnect only the player who left; keep room live for everyone else
+          // 3+ player room: disconnect only the player who left; keep room live & stay in All-Players View if it was their turn
           if (leavingSeat) {
             leavingSeat.claimedByDeviceId = null;
+            if (state.activePlayerIndex === leavingIdx) {
+              userViewOverride = 'all';
+            }
             state.commitSeq = (state.commitSeq || 1) + 1;
             state.turnSeq++;
             broadcastFullState();

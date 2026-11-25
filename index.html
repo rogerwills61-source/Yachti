@@ -344,22 +344,18 @@
   }
 
   .tray-hint {
-    position: absolute;
-    left: 14px;
-    bottom: 11px;
-    pointer-events: none;
-    background: rgba(9, 21, 16, 0.72);
-    border: 1px solid rgba(255,255,255,0.12);
-    color: #d6e6de;
-    padding: 3px 8px;
-    border-radius: 999px;
+    flex: 0 0 auto;
+    text-align: center;
+    color: var(--text-muted);
     font-size: 11px;
     font-weight: 600;
-    backdrop-filter: blur(4px);
-    transition: opacity 0.2s;
+    line-height: 1.2;
+    min-height: 14px;
+    padding: 0 4px;
+    transition: opacity 0.18s;
   }
 
-  .tray-hint.hidden { opacity: 0; }
+  .tray-hint.hidden { opacity: 0; visibility: hidden; display: block !important; }
 
   .arena-controls {
     flex: 0 0 auto;
@@ -1180,8 +1176,8 @@
     <section id="arenaSection" class="arena-section">
       <div class="tray-shell">
         <canvas id="diceCanvas" aria-label="3D Dice Tray and Side Reserve Bar"></canvas>
-        <div id="trayHint" class="tray-hint">Tap Roll to start</div>
       </div>
+      <div id="trayHint" class="tray-hint">Tap Roll to start</div>
       <div class="arena-controls">
         <button id="btnRoll" class="roll-btn">
           <span id="rollBtnLabel">Roll Dice</span>
@@ -1248,7 +1244,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.0.0 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.0.1 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1496,7 +1492,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.0.1';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
   const STORAGE_PREFS_KEY = 'yachti_v1_prefs';
@@ -2519,10 +2515,11 @@
       const arenaW = barX;
 
       const slotTop = 22;
-      const slotAvailH = Math.max(120, height - slotTop - 6);
+      const slotAvailH = Math.max(110, height - slotTop - 6);
       const slotStep = slotAvailH / 5;
-      const holdDieSize = Math.max(24, Math.min(40, Math.floor(Math.min(slotStep * 0.74, barW * 0.56))));
-      const dieSize = Math.max(36, Math.min(54, Math.floor(Math.min(arenaW / 5.4, height / 3.9))));
+      const holdDieSize = Math.max(22, Math.min(38, Math.floor(Math.min(slotStep * 0.72, barW * 0.54))));
+      // Sized so all 5 dice always fit inside 3D-perspective safe felt bounds with >=1.54x separation
+      const dieSize = Math.max(24, Math.min(50, Math.floor(Math.min((arenaW - 14) / 5.15, (height - 14) / 3.55))));
 
       const slots = [];
       for (let i = 0; i < 5; i++) {
@@ -2533,28 +2530,143 @@
       }
       metrics = { barX, barW, arenaW, dieSize, holdDieSize, slots };
 
-      // Keep resting dice inside updated bounds
+      // Keep resting dice cleanly separated and fully visible inside updated bounds
       repositionRestingDice();
     }
 
-    function restingArenaPos(idx) {
-      // Clean 2-row diamond/pentagon spread in the felt rolling arena
-      const cx = metrics.arenaW * 0.5;
-      const cy = height * 0.52;
-      const dx = Math.min(metrics.arenaW * 0.27, metrics.dieSize * 1.55);
-      const dy = Math.min(height * 0.23, metrics.dieSize * 1.15);
-      const pts = [
-        { x: cx - dx, y: cy - dy * 0.85 },
-        { x: cx,      y: cy - dy * 0.95 },
-        { x: cx + dx, y: cy - dy * 0.85 },
-        { x: cx - dx * 0.55, y: cy + dy * 0.9 },
-        { x: cx + dx * 0.55, y: cy + dy * 0.9 }
+    /**
+     * Exact analytical inverse of project3D() so every rotated 3D die (corners + bevel + shadow)
+     * remains 100% visible inside the felt rolling arena with >=6px rail clearance.
+     */
+    function getSafeArenaBounds() {
+      const camZ = 760;
+      const s = metrics.dieSize;
+      const scale = camZ / (camZ - s);
+      const cornerR = s * 0.5 * Math.SQRT2 * scale;
+      const railPad = 6;
+      const viewCx = metrics.arenaW * 0.5;
+      const viewCy = height * 0.5;
+      const maxOffX = Math.max(0, (viewCx - railPad - cornerR) / scale);
+      const maxOffY = Math.max(0, (viewCy - railPad - cornerR) / scale);
+      return {
+        minX: viewCx - maxOffX,
+        maxX: viewCx + maxOffX,
+        minY: viewCy - maxOffY,
+        maxY: viewCy + maxOffY
+      };
+    }
+
+    function getStaggeredArenaSlots() {
+      const b = getSafeArenaBounds();
+      const cx = (b.minX + b.maxX) * 0.5;
+      const cy = (b.minY + b.maxY) * 0.5;
+      const availW = b.maxX - b.minX;
+      const availH = b.maxY - b.minY;
+      const dx = Math.min(availW * 0.5, Math.max(metrics.dieSize * 1.62, availW * 0.44));
+      const dy = Math.min(availH * 0.5, Math.max(metrics.dieSize * 0.80, availH * 0.44));
+      return [
+        { x: cx - dx, y: cy - dy },
+        { x: cx,      y: cy - dy },
+        { x: cx + dx, y: cy - dy },
+        { x: cx - dx * 0.52, y: cy + dy },
+        { x: cx + dx * 0.52, y: cy + dy }
       ];
-      return pts[idx % 5];
+    }
+
+    function restingArenaPos(idx) {
+      return getStaggeredArenaSlots()[idx % 5];
+    }
+
+    /**
+     * Pixel-space non-overlap & visibility solver:
+     * Guarantees every unheld die sits strictly inside getSafeArenaBounds()
+     * with center-to-center distance >= dieSize * 1.54 (strictly wider than 3D rotated corner-to-corner).
+     */
+    function resolveNonOverlappingArenaPositions(rawEntries) {
+      const b = getSafeArenaBounds();
+      const minDist = metrics.dieSize * 1.54;
+      const pts = rawEntries.map(e => ({
+        idx: e.idx,
+        x: Math.max(b.minX, Math.min(b.maxX, e.x)),
+        y: Math.max(b.minY, Math.min(b.maxY, e.y))
+      }));
+      const n = pts.length;
+
+      for (let it = 0; it < 100; it++) {
+        let moved = false;
+        for (let i = 0; i < n; i++) {
+          for (let j = i + 1; j < n; j++) {
+            const dx = pts[j].x - pts[i].x;
+            const dy = pts[j].y - pts[i].y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < minDist) {
+              moved = true;
+              let nx, ny;
+              if (dist < 1e-4) {
+                const ang = pts[i].idx * 1.7 + pts[j].idx * 2.9 + it * 0.3;
+                nx = Math.cos(ang);
+                ny = Math.sin(ang);
+              } else {
+                nx = dx / dist;
+                ny = dy / dist;
+              }
+              const push = (minDist - dist) * 0.54 + 0.25;
+              pts[i].x -= nx * push;
+              pts[i].y -= ny * push;
+              pts[j].x += nx * push;
+              pts[j].y += ny * push;
+            }
+          }
+        }
+        for (let i = 0; i < n; i++) {
+          if (pts[i].x < b.minX) pts[i].x = b.minX;
+          else if (pts[i].x > b.maxX) pts[i].x = b.maxX;
+          if (pts[i].y < b.minY) pts[i].y = b.minY;
+          else if (pts[i].y > b.maxY) pts[i].y = b.maxY;
+        }
+        if (!moved) break;
+      }
+
+      // Strict verification; if dice wedged in a corner, match cleanly to nearest staggered slot
+      let valid = true;
+      for (let i = 0; i < n && valid; i++) {
+        if (pts[i].x < b.minX - 0.2 || pts[i].x > b.maxX + 0.2 || pts[i].y < b.minY - 0.2 || pts[i].y > b.maxY + 0.2) {
+          valid = false;
+          break;
+        }
+        for (let j = i + 1; j < n; j++) {
+          if (Math.hypot(pts[j].x - pts[i].x, pts[j].y - pts[i].y) < minDist - 0.5) {
+            valid = false;
+            break;
+          }
+        }
+      }
+
+      if (!valid) {
+        const slots = getStaggeredArenaSlots();
+        const used = new Set();
+        for (let i = 0; i < n; i++) {
+          let bestS = 0;
+          let bestD = Infinity;
+          for (let sIdx = 0; sIdx < slots.length; sIdx++) {
+            if (used.has(sIdx)) continue;
+            const d = Math.hypot(pts[i].x - slots[sIdx].x, pts[i].y - slots[sIdx].y);
+            if (d < bestD) { bestD = d; bestS = sIdx; }
+          }
+          used.add(bestS);
+          pts[i].x = slots[bestS].x;
+          pts[i].y = slots[bestS].y;
+        }
+      }
+
+      const out = {};
+      for (const p of pts) out[p.idx] = { x: p.x, y: p.y };
+      return out;
     }
 
     function repositionRestingDice() {
       if (rollAnim) return;
+      const unheldEntries = [];
       for (let i = 0; i < 5; i++) {
         const d = dice[i];
         if (dragState && dragState.dieIdx === i) continue;
@@ -2563,12 +2675,14 @@
           d.y = metrics.slots[i].y;
           d.z = 0;
         } else {
-          const pad = metrics.dieSize * 0.75;
-          if (d.x < pad || d.x > metrics.arenaW - pad || d.y < pad || d.y > height - pad) {
-            const p = restingArenaPos(i);
-            d.x = p.x;
-            d.y = p.y;
-          }
+          unheldEntries.push({ idx: i, x: d.x, y: d.y });
+        }
+      }
+      if (unheldEntries.length > 0) {
+        const resolved = resolveNonOverlappingArenaPositions(unheldEntries);
+        for (const e of unheldEntries) {
+          dice[e.idx].x = resolved[e.idx].x;
+          dice[e.idx].y = resolved[e.idx].y;
         }
       }
     }
@@ -2617,21 +2731,29 @@
         toY = metrics.slots[idx].y;
         toQ = TARGET_QUATS[d.value].slice();
       } else {
-        // Pick an uncluttered arena spot near resting position
+        // Pick a guaranteed non-overlapping, fully visible spot in the felt arena
         const base = restingArenaPos(idx);
-        toX = base.x;
-        toY = base.y;
-        const minDist = metrics.dieSize * 1.25;
-        for (let attempt = 0; attempt < 8; attempt++) {
-          let clash = false;
-          for (let j = 0; j < 5; j++) {
-            if (j === idx || dice[j].held) continue;
-            if (Math.hypot(dice[j].x - toX, dice[j].y - toY) < minDist) { clash = true; break; }
-          }
-          if (!clash) break;
-          const ang = attempt * 1.1;
-          toX = Math.max(metrics.dieSize, Math.min(metrics.arenaW - metrics.dieSize, base.x + Math.cos(ang) * minDist));
-          toY = Math.max(metrics.dieSize, Math.min(height - metrics.dieSize, base.y + Math.sin(ang) * minDist));
+        const candidates = [base, ...getStaggeredArenaSlots()];
+        const minDist = metrics.dieSize * 1.54;
+        const activeOthers = [];
+        for (let j = 0; j < 5; j++) {
+          if (j === idx || dice[j].held) continue;
+          const ox = dice[j].slide ? dice[j].slide.toX : dice[j].x;
+          const oy = dice[j].slide ? dice[j].slide.toY : dice[j].y;
+          activeOthers.push({ idx: j, x: ox, y: oy });
+        }
+        let chosen = null;
+        for (const cand of candidates) {
+          const clash = activeOthers.some(o => Math.hypot(o.x - cand.x, o.y - cand.y) < minDist);
+          if (!clash) { chosen = cand; break; }
+        }
+        if (chosen) {
+          toX = chosen.x;
+          toY = chosen.y;
+        } else {
+          const resolved = resolveNonOverlappingArenaPositions([...activeOthers, { idx, x: base.x, y: base.y }]);
+          toX = resolved[idx].x;
+          toY = resolved[idx].y;
         }
         toQ = targetQuatWithYaw(d.value, ((idx * 0.37) % 0.4) - 0.2);
       }
@@ -2685,18 +2807,23 @@
     }
 
     /**
-     * Plays a deterministic seeded 3D roll trajectory from ROLL_START payload.
-     * If device woke late (elapsed > ANIM_MS), snaps immediately to finalValues.
+     * Plays a deterministic seeded 3D roll trajectory from ROLL_START payload,
+     * with smooth pixel-space guided settling so rolled dice NEVER overlap or clip off-edge.
+     * If device woke late (elapsed > ANIM_MS), snaps immediately to clean final positions.
      */
     function playRollPayload(payload, { silent = false } = {}) {
       if (!payload) return;
       dragState = null;
 
-      // Normalize physics space (0..1000 x 0..650) so trajectories are resolution-independent
+      // Normalized physics space (0..1000 x 0..650) mapped directly onto getSafeArenaBounds()
       const simW = 1000;
       const simH = 650;
-      const simPad = 105;
-      const simMinDist = 172;
+      const simPad = 40;
+      const b = getSafeArenaBounds();
+      const spanX = Math.max(1, b.maxX - b.minX);
+      const spanY = Math.max(1, b.maxY - b.minY);
+      // Scale mid-roll separation to match real pixel die clearance
+      const simMinDist = Math.max(240, Math.min(440, Math.max((metrics.dieSize * 1.56 / spanX) * simW, (metrics.dieSize * 1.56 / spanY) * simH)));
       const rng = mulberry32(payload.seed);
 
       const simDice = [];
@@ -2714,9 +2841,9 @@
           dice[i].q = TARGET_QUATS[val].slice();
           simDice.push(null);
         } else {
-          // Spawn deterministically near left-center wall throwing rightward/inward
-          const sx = 170 + (i % 3) * 150 + (rng() - 0.5) * 40;
-          const sy = 210 + Math.floor(i / 3) * 210 + (rng() - 0.5) * 40;
+          // Spawn deterministically across left-center throwing rightward/inward
+          const sx = 120 + (i % 3) * 240 + (rng() - 0.5) * 40;
+          const sy = 160 + Math.floor(i / 3) * 320 + (rng() - 0.5) * 40;
           simDice.push({
             i,
             x: sx,
@@ -2743,7 +2870,6 @@
 
       for (let step = 0; step <= steps; step++) {
         const prog = step / steps;
-        // Record snapshot
         const snap = [];
         for (let i = 0; i < 5; i++) {
           const sd = simDice[i];
@@ -2753,7 +2879,6 @@
         frames.push(snap);
         if (step === steps) break;
 
-        // Physics step
         for (let i = 0; i < 5; i++) {
           const sd = simDice[i];
           if (!sd) continue;
@@ -2784,12 +2909,6 @@
             }
           }
 
-          // Wall collisions
-          if (sd.x < simPad) { sd.x = simPad; sd.vx = Math.abs(sd.vx) * 0.65; }
-          if (sd.x > simW - simPad) { sd.x = simW - simPad; sd.vx = -Math.abs(sd.vx) * 0.65; }
-          if (sd.y < simPad) { sd.y = simPad; sd.vy = Math.abs(sd.vy) * 0.65; }
-          if (sd.y > simH - simPad) { sd.y = simH - simPad; sd.vy = -Math.abs(sd.vy) * 0.65; }
-
           // Angular integration + smooth convergence to final target face
           const ang = Math.hypot(sd.wx, sd.wy, sd.wz) * dt;
           if (ang > 0.0001) {
@@ -2803,38 +2922,80 @@
           }
         }
 
-        // Die-to-die elastic separation
+        // Die-to-die elastic separation (followed by wall clamping so dice never leave bounds)
         for (let i = 0; i < 5; i++) {
           const a = simDice[i];
           if (!a) continue;
           for (let j = i + 1; j < 5; j++) {
-            const b = simDice[j];
-            if (!b) continue;
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
+            const bDie = simDice[j];
+            if (!bDie) continue;
+            const dx = bDie.x - a.x;
+            const dy = bDie.y - a.y;
             const dist = Math.hypot(dx, dy) || 0.01;
             if (dist < simMinDist) {
               const overlap = (simMinDist - dist) * 0.52;
               const nx = dx / dist, ny = dy / dist;
               a.x -= nx * overlap; a.y -= ny * overlap;
-              b.x += nx * overlap; b.y += ny * overlap;
-              const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+              bDie.x += nx * overlap; bDie.y += ny * overlap;
+              const rel = (bDie.vx - a.vx) * nx + (bDie.vy - a.vy) * ny;
               if (rel < 0) {
                 const imp = -rel * 0.65;
                 a.vx -= nx * imp; a.vy -= ny * imp;
-                b.vx += nx * imp; b.vy += ny * imp;
+                bDie.vx += nx * imp; bDie.vy += ny * imp;
               }
             }
           }
         }
+
+        // Wall clamping AFTER separation
+        for (let i = 0; i < 5; i++) {
+          const sd = simDice[i];
+          if (!sd) continue;
+          if (sd.x < simPad) { sd.x = simPad; sd.vx = Math.abs(sd.vx) * 0.65; }
+          if (sd.x > simW - simPad) { sd.x = simW - simPad; sd.vx = -Math.abs(sd.vx) * 0.65; }
+          if (sd.y < simPad) { sd.y = simPad; sd.vy = Math.abs(sd.vy) * 0.65; }
+          if (sd.y > simH - simPad) { sd.y = simH - simPad; sd.vy = -Math.abs(sd.vy) * 0.65; }
+        }
       }
 
-      // Enforce exact final resting face & clean non-overlapping positions on final frame
+      // Compute guaranteed non-overlapping, fully visible final positions in real pixel space
       const lastSnap = frames[frames.length - 1];
+      const rawEndPx = [];
       for (let i = 0; i < 5; i++) {
         if (lastSnap[i] && simDice[i]) {
           lastSnap[i].z = 0;
           lastSnap[i].q = simDice[i].targetQ.slice();
+          rawEndPx.push({
+            idx: i,
+            x: b.minX + (lastSnap[i].x / simW) * spanX,
+            y: b.minY + (lastSnap[i].y / simH) * spanY
+          });
+        }
+      }
+
+      if (rawEndPx.length > 0) {
+        const cleanPx = resolveNonOverlappingArenaPositions(rawEndPx);
+        // Smoothly steer the final 45% of frames into the guaranteed clean positions (zero end-of-roll pop)
+        const deltas = {};
+        for (const e of rawEndPx) {
+          const targetSimX = ((cleanPx[e.idx].x - b.minX) / spanX) * simW;
+          const targetSimY = ((cleanPx[e.idx].y - b.minY) / spanY) * simH;
+          deltas[e.idx] = {
+            dx: targetSimX - lastSnap[e.idx].x,
+            dy: targetSimY - lastSnap[e.idx].y
+          };
+        }
+        for (let step = 0; step <= steps; step++) {
+          const prog = step / steps;
+          if (prog <= 0.55) continue;
+          const t = (prog - 0.55) / 0.45;
+          const smooth = t * t * (3 - 2 * t);
+          const snap = frames[step];
+          for (const e of rawEndPx) {
+            if (!snap[e.idx]) continue;
+            snap[e.idx].x = Math.max(0, Math.min(simW, snap[e.idx].x + deltas[e.idx].dx * smooth));
+            snap[e.idx].y = Math.max(0, Math.min(simH, snap[e.idx].y + deltas[e.idx].dy * smooth));
+          }
         }
       }
 
@@ -2842,6 +3003,7 @@
       if (elapsed >= ANIM_MS) {
         // Late-joining / waking device: snap cleanly to settled state
         applySimFrame(lastSnap, simW, simH);
+        repositionRestingDice();
         rollAnim = null;
         callbacks.onRollSettled(payload, true);
         return;
@@ -2861,15 +3023,14 @@
     }
 
     function applySimFrame(snap, simW, simH) {
-      const marginX = metrics.dieSize * 0.68;
-      const marginY = metrics.dieSize * 0.68;
-      const usableW = Math.max(40, metrics.arenaW - marginX * 2);
-      const usableH = Math.max(40, height - marginY * 2);
+      const b = getSafeArenaBounds();
+      const spanX = b.maxX - b.minX;
+      const spanY = b.maxY - b.minY;
       for (let i = 0; i < 5; i++) {
         const s = snap[i];
         if (!s) continue;
-        dice[i].x = marginX + (s.x / simW) * usableW;
-        dice[i].y = marginY + (s.y / simH) * usableH;
+        dice[i].x = b.minX + (s.x / simW) * spanX;
+        dice[i].y = b.minY + (s.y / simH) * spanY;
         dice[i].z = s.z * 0.55;
         dice[i].q = s.q;
       }
@@ -3099,6 +3260,7 @@
         if (frac >= 1) {
           const finished = rollAnim.payload;
           rollAnim = null;
+          repositionRestingDice();
           callbacks.onRollSettled(finished, false);
         }
       }
@@ -3221,9 +3383,10 @@
           if (nextHeld) {
             animateSlide(st.dieIdx, true);
           } else {
-            const pad = metrics.dieSize * 0.65;
-            d.x = Math.max(pad, Math.min(metrics.arenaW - pad, d.x));
-            d.y = Math.max(pad, Math.min(height - pad, d.y));
+            const b = getSafeArenaBounds();
+            d.x = Math.max(b.minX, Math.min(b.maxX, d.x));
+            d.y = Math.max(b.minY, Math.min(b.maxY, d.y));
+            repositionRestingDice();
           }
         }
       }

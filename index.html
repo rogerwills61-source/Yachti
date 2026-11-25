@@ -1249,7 +1249,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.1.0 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.1.1 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1309,15 +1309,25 @@
       <button class="modal-close" data-close="modalLink" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <div class="seg-group">
+      <div id="linkTabsBar" class="seg-group">
         <button id="tabOnlineSync" class="seg-btn active">🌐 Online Room</button>
         <button id="tabAirplaneSync" class="seg-btn">✈️ Airplane Sync</button>
+      </div>
+
+      <!-- Built-in Camera QR Scanner (Placed at top so viewfinder is always in view) -->
+      <div id="qrScannerPanel" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
+        <div class="scanner-box">
+          <video id="qrVideo" playsinline muted autoplay></video>
+          <div class="scanner-reticle"></div>
+        </div>
+        <div id="qrScannerMsg" class="muted-note" style="text-align:center;">Point camera at QR code…</div>
+        <button id="btnStopScanner" class="btn danger sm full">Cancel Camera</button>
       </div>
 
       <!-- Online Room Tab -->
       <div id="panelOnlineSync" style="display:flex; flex-direction:column; gap:12px;">
         <div id="onlineNotHosted">
-          <div class="muted-note" style="margin-bottom:10px;">Create a private encrypted room to sync 3D rolls, kept dice, and scores across up to 6 phones in real time.</div>
+          <div class="muted-note" style="margin-bottom:10px;">Create a private room to sync 3D rolls, kept dice, and scores across up to 6 phones in real time.</div>
           <button id="btnCreateRoom" class="btn primary full">Create Live Room</button>
         </div>
 
@@ -1325,7 +1335,7 @@
           <div class="room-code-box">
             <div class="field-label" style="margin-bottom:2px;">4-Character Room Code</div>
             <div id="displayRoomCode" class="room-code-big">----</div>
-            <div id="displayPeerSummary" class="muted-note">Waiting for players to join…</div>
+            <div id="displayPeerSummary" class="muted-note">Connecting to sync relay…</div>
           </div>
           <div class="qr-wrap">
             <canvas id="roomQrCanvas" width="240" height="240"></canvas>
@@ -1334,7 +1344,10 @@
             <button id="btnShareLink" class="btn emerald">📤 Share Link</button>
             <button id="btnCopyLink" class="btn">📋 Copy Link</button>
           </div>
-          <button id="btnLeaveRoom" class="btn danger sm">Disconnect / Play Local</button>
+          <div class="row-gap">
+            <button id="btnRoomNewGame" class="btn primary sm">✨ New Game / Players</button>
+            <button id="btnLeaveRoom" class="btn danger sm">Disconnect</button>
+          </div>
         </div>
 
         <hr style="border:none; border-top:1px solid var(--border); width:100%; margin:2px 0;">
@@ -1345,6 +1358,7 @@
             <input id="inputJoinCode" class="text-input" placeholder="4-char code or paste link" autocomplete="off" autocapitalize="characters">
             <button id="btnJoinRoom" class="btn primary" style="flex:0 0 auto;">Join</button>
           </div>
+          <div id="joinStatusText" class="muted-note hidden" style="margin-top:6px; text-align:center;"></div>
           <div style="margin-top:7px;">
             <button id="btnScanOnlineQr" class="btn sm full">📷 Scan Room QR Code</button>
           </div>
@@ -1357,7 +1371,7 @@
           <b>Zero Wi-Fi / Zero Data Pairing (3 Steps):</b>
           <ol>
             <li>Turn on <b>Bluetooth Tethering</b> (or an offline <b>Wi-Fi Hotspot</b> with mobile data off) between devices.</li>
-            <li><b>Host</b> taps <i>Host Airplane Sync</i> → <b>Guest</b> scans Offer QR to create an Answer QR.</li>
+            <li><b>Host</b> taps <i>Host (Create Offer)</i> → <b>Guest</b> scans Offer QR to create an Answer QR.</li>
             <li><b>Host</b> scans Guest's Answer QR → direct P2P link locks in!</li>
           </ol>
         </div>
@@ -1410,16 +1424,6 @@
         </div>
 
         <button id="btnAirPassFallback" class="btn sm full">Or just play single-device Pass-and-Play</button>
-      </div>
-
-      <!-- Built-in Camera QR Scanner Overlay inside Link Modal -->
-      <div id="qrScannerPanel" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
-        <div class="scanner-box">
-          <video id="qrVideo" playsinline muted autoplay></video>
-          <div class="scanner-reticle"></div>
-        </div>
-        <div id="qrScannerMsg" class="muted-note" style="text-align:center;">Point camera at QR code…</div>
-        <button id="btnStopScanner" class="btn danger sm full">Cancel Camera</button>
       </div>
     </div>
   </div>
@@ -1511,7 +1515,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.1.1';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
   const STORAGE_PREFS_KEY = 'yachti_v1_prefs';
@@ -3450,30 +3454,48 @@
    * ============================================================================ */
   const SyncEngine = (() => {
     const MQTT_BROKERS = [
-      'wss://broker.emqx.io:8084/mqtt',
-      'wss://broker.hivemq.com:8884/mqtt',
-      'wss://test.mosquitto.org:8081'
+      { name: 'EMQX',      url: 'wss://broker.emqx.io:8084/mqtt' },
+      { name: 'HiveMQ',    url: 'wss://broker.hivemq.com:8884/mqtt' },
+      { name: 'Mosquitto', url: 'wss://test.mosquitto.org:8081' }
     ];
-    const ICE_ONLINE = [{ urls: 'stun:stun.l.google.com:19302' }];
+    const ICE_ONLINE = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ];
 
     let activeRoomId = 'LOCAL';
     let activeToken = '';
     let channelKey = '';
-    let isHostingJoin = false;
     let airplaneModeActive = false;
 
-    // Transport handles
+    // Pending 4-char code join handshake state
+    let pendingJoinCode = '';
+    let joinRetryTimer = null;
+    let joinTimeoutTimer = null;
+
+    // Same-device tabs BroadcastChannel
     let bc = null;
-    let ws = null;
-    let wsConnected = false;
-    let brokerIdx = 0;
-    let reconnectTimer = null;
-    let reconnectDelay = 1200;
-    let pingTimer = null;
-    let mqttBuf = new Uint8Array(0);
+
+    // Parallel multi-broker MQTT pool (eliminates single-broker split-brain!)
+    const brokerSockets = new Map(); // url -> { name, url, ws, connected, buf, pingTimer, reconnectTimer, delay, subsSent }
     let packetIdSeq = 1;
 
-    // Online & Airplane WebRTC peers: Map<peerId, { pc, dc, airplane, lastSeen }>
+    // Deduplication ring buffer for multi-broker / multi-transport packet fan-out
+    const seenMsgIds = new Set();
+    const seenMsgQueue = [];
+    function markSeen(msgId) {
+      if (!msgId) return false;
+      if (seenMsgIds.has(msgId)) return true;
+      seenMsgIds.add(msgId);
+      seenMsgQueue.push(msgId);
+      if (seenMsgQueue.length > 256) {
+        const old = seenMsgQueue.shift();
+        seenMsgIds.delete(old);
+      }
+      return false;
+    }
+
+    // Online & Airplane WebRTC peers: Map<peerId, { pc, dc, airplane, createdAt, lastSeen }>
     const peers = new Map();
     const knownDevices = new Map(); // deviceId -> lastSeenMs
     let wakeSuppressUntil = 0;
@@ -3481,13 +3503,14 @@
     // Pending Airplane handshake state
     let airPendingPc = null;
     let airPendingDc = null;
-    let airPendingPeerId = null;
 
     let handlers = {
       onPacket: () => {},
       onStatusChange: () => {},
+      onPeerConnected: () => {},
       getFullState: () => null,
-      onJoinGrantReceived: () => {}
+      onJoinGrantReceived: () => {},
+      onJoinTimeout: () => {}
     };
 
     function shortHash(str) {
@@ -3504,7 +3527,7 @@
       return `y1_${roomId}_${shortHash(roomId + ':' + token)}`;
     }
 
-    // ---- Pure-JS MQTT 3.1.1 Binary Codec (with Multi-Byte Remaining Length) ----
+    // ---- Pure-JS MQTT 3.1.1 Binary Codec (Multi-Byte Remaining Length) ----
     function encodeRemainingLength(len) {
       const out = [];
       let x = len;
@@ -3562,32 +3585,123 @@
       return new Uint8Array([0xC0, 0x00]);
     }
 
-    function feedMqttBytes(chunk) {
-      mqttBuf = concatU8([mqttBuf, new Uint8Array(chunk)]);
-      while (mqttBuf.length >= 2) {
-        const header = mqttBuf[0];
+    function getConnectedBrokerNames() {
+      const names = [];
+      for (const b of brokerSockets.values()) {
+        if (b.connected && b.ws && b.ws.readyState === 1) names.push(b.name);
+      }
+      return names;
+    }
+
+    function sendSubscribeOnBroker(b) {
+      if (!b || !b.connected || !b.ws || b.ws.readyState !== 1) return;
+      const room = activeRoomId !== 'LOCAL' ? activeRoomId : pendingJoinCode;
+      if (channelKey) {
+        const chTopic = `yachti/v1/ch/${channelKey}`;
+        if (!b.subsSent.has(chTopic)) {
+          b.subsSent.add(chTopic);
+          try { b.ws.send(mqttSubscribePacket(chTopic)); } catch (_) {}
+        }
+      }
+      if (room && room !== 'LOCAL') {
+        const jTopic = `yachti/v1/join/${room}`;
+        if (!b.subsSent.has(jTopic)) {
+          b.subsSent.add(jTopic);
+          try { b.ws.send(mqttSubscribePacket(jTopic)); } catch (_) {}
+        }
+      }
+    }
+
+    function subscribeAllConnectedBrokers() {
+      for (const b of brokerSockets.values()) {
+        if (b.connected) sendSubscribeOnBroker(b);
+      }
+    }
+
+    function publishOnAllBrokers(topic, jsonStr, retain = false) {
+      let sent = 0;
+      for (const b of brokerSockets.values()) {
+        if (b.connected && b.ws && b.ws.readyState === 1) {
+          try {
+            b.ws.send(mqttPublishPacket(topic, jsonStr, retain));
+            sent++;
+          } catch (_) {}
+        }
+      }
+      return sent;
+    }
+
+    function sendJoinRequestNow() {
+      if (!pendingJoinCode) return;
+      const req = JSON.stringify({
+        type: 'JOIN_REQ',
+        roomId: pendingJoinCode,
+        senderId: MY_DEVICE_ID,
+        msgId: 'jr_' + randomHex(4)
+      });
+      publishOnAllBrokers(`yachti/v1/join/${pendingJoinCode}`, req, false);
+    }
+
+    function publishJoinGrant(roomId, targetId = null) {
+      if (!roomId || roomId === 'LOCAL' || !activeToken) return;
+      const grant = JSON.stringify({
+        type: 'JOIN_GRANT',
+        roomId,
+        sessionToken: activeToken,
+        targetId: targetId || '*',
+        senderId: MY_DEVICE_ID,
+        sentAt: Date.now(),
+        msgId: 'jg_' + randomHex(4)
+      });
+      publishOnAllBrokers(`yachti/v1/join/${roomId}`, grant, false);
+    }
+
+    function feedMqttBytes(b, chunk) {
+      b.buf = concatU8([b.buf, new Uint8Array(chunk)]);
+      while (b.buf.length >= 2) {
+        const header = b.buf[0];
         let mult = 1, remLen = 0, idx = 1, complete = false;
-        while (idx < mqttBuf.length && idx <= 4) {
-          const byte = mqttBuf[idx++];
+        while (idx < b.buf.length && idx <= 4) {
+          const byte = b.buf[idx++];
           remLen += (byte & 0x7f) * mult;
           mult *= 128;
           if ((byte & 0x80) === 0) { complete = true; break; }
         }
         if (!complete) return;
         const totalLen = idx + remLen;
-        if (mqttBuf.length < totalLen) return;
+        if (b.buf.length < totalLen) return;
 
-        const pktBody = mqttBuf.slice(idx, totalLen);
-        mqttBuf = mqttBuf.slice(totalLen);
+        const pktBody = b.buf.slice(idx, totalLen);
+        b.buf = b.buf.slice(totalLen);
 
         const pktType = header >> 4;
         if (pktType === 2) {
-          // CONNACK
-          wsConnected = true;
-          reconnectDelay = 1200;
-          subscribeTopics();
-          sendHello(true);
+          // CONNACK received -> safe to SUBSCRIBE!
+          const returnCode = pktBody.length >= 2 ? pktBody[1] : 0;
+          if (returnCode !== 0) {
+            try { b.ws.close(); } catch (_) {}
+            return;
+          }
+          b.connected = true;
+          b.delay = 1400;
+          b.subsSent.clear();
+          sendSubscribeOnBroker(b);
           notifyStatus();
+
+          // Wait briefly for SUBACK before announcing HELLO / JOIN_REQ so replies are never missed
+          setTimeout(() => {
+            if (!b.connected) return;
+            if (pendingJoinCode && !activeToken) {
+              sendJoinRequestNow();
+            } else if (activeRoomId !== 'LOCAL' && activeToken) {
+              sendHello();
+              // Publish current authoritative state (retained) if we already have a real game (turnSeq > 0)
+              const st = handlers.getFullState();
+              if (st && st.turnSeq > 0 && st.roomId === activeRoomId && st.sessionToken === activeToken) {
+                sendPacket({ type: 'STATE_SYNC', state: st }, { retain: true });
+              }
+            }
+          }, 260);
         } else if (pktType === 3) {
           // PUBLISH
           const tLen = (pktBody[0] << 8) | pktBody[1];
@@ -3600,86 +3714,131 @@
       }
     }
 
-    function subscribeTopics() {
-      if (!ws || ws.readyState !== 1) return;
-      if (channelKey) {
-        ws.send(mqttSubscribePacket(`yachti/v1/ch/${channelKey}`));
+    function connectSingleBroker(cfg) {
+      let b = brokerSockets.get(cfg.url);
+      if (!b) {
+        b = {
+          name: cfg.name,
+          url: cfg.url,
+          ws: null,
+          connected: false,
+          buf: new Uint8Array(0),
+          pingTimer: null,
+          reconnectTimer: null,
+          delay: 1400,
+          subsSent: new Set()
+        };
+        brokerSockets.set(cfg.url, b);
       }
-      if (activeRoomId && activeRoomId !== 'LOCAL') {
-        ws.send(mqttSubscribePacket(`yachti/v1/join/${activeRoomId}`));
-      }
-    }
 
-    function connectMqtt() {
-      cleanupMqtt(false);
-      if (activeRoomId === 'LOCAL' || airplaneModeActive) return;
-      const url = MQTT_BROKERS[brokerIdx % MQTT_BROKERS.length];
-      notifyStatus();
-      try {
-        ws = new WebSocket(url, 'mqtt');
-        ws.binaryType = 'arraybuffer';
-      } catch (_) {
-        scheduleReconnect();
+      if (b.ws && (b.ws.readyState === 0 || b.ws.readyState === 1)) {
+        if (b.connected) sendSubscribeOnBroker(b);
         return;
       }
 
-      const connectTimeout = setTimeout(() => {
-        if (!wsConnected && ws) {
-          try { ws.close(); } catch (_) {}
-        }
-      }, 6500);
+      clearTimeout(b.reconnectTimer);
+      clearInterval(b.pingTimer);
+      b.connected = false;
+      b.buf = new Uint8Array(0);
+      b.subsSent.clear();
 
-      ws.onopen = () => {
-        clearTimeout(connectTimeout);
-        mqttBuf = new Uint8Array(0);
-        const cid = 'y_' + MY_DEVICE_ID.slice(-6) + '_' + randomHex(2);
-        ws.send(mqttConnectPacket(cid));
-        clearInterval(pingTimer);
-        pingTimer = setInterval(() => {
-          if (ws && ws.readyState === 1) ws.send(mqttPingReqPacket());
+      let sock;
+      try {
+        sock = new WebSocket(cfg.url, 'mqtt');
+        sock.binaryType = 'arraybuffer';
+      } catch (_) {
+        scheduleBrokerReconnect(b);
+        return;
+      }
+      b.ws = sock;
+
+      const openTimeout = setTimeout(() => {
+        if (b.ws === sock && !b.connected) {
+          try { sock.close(); } catch (_) {}
+        }
+      }, 7000);
+
+      sock.onopen = () => {
+        if (b.ws !== sock) return;
+        clearTimeout(openTimeout);
+        b.buf = new Uint8Array(0);
+        const cid = 'y_' + MY_DEVICE_ID.slice(-6) + '_' + randomHex(3);
+        try { sock.send(mqttConnectPacket(cid)); } catch (_) {}
+        clearInterval(b.pingTimer);
+        b.pingTimer = setInterval(() => {
+          if (b.ws === sock && sock.readyState === 1 && b.connected) {
+            try { sock.send(mqttPingReqPacket()); } catch (_) {}
+          }
         }, 20000);
       };
 
-      ws.onmessage = (ev) => {
-        if (ev.data instanceof ArrayBuffer) feedMqttBytes(ev.data);
+      sock.onmessage = (ev) => {
+        if (b.ws !== sock) return;
+        if (ev.data instanceof ArrayBuffer) feedMqttBytes(b, ev.data);
       };
 
-      ws.onerror = () => { clearTimeout(connectTimeout); };
-      ws.onclose = () => {
-        clearTimeout(connectTimeout);
-        wsConnected = false;
-        clearInterval(pingTimer);
+      sock.onerror = () => { clearTimeout(openTimeout); };
+
+      sock.onclose = () => {
+        clearTimeout(openTimeout);
+        if (b.ws !== sock) return;
+        b.ws = null;
+        b.connected = false;
+        clearInterval(b.pingTimer);
         notifyStatus();
-        if (activeRoomId !== 'LOCAL' && !airplaneModeActive) {
-          brokerIdx = (brokerIdx + 1) % MQTT_BROKERS.length;
-          scheduleReconnect();
+        if ((activeRoomId !== 'LOCAL' || pendingJoinCode) && !airplaneModeActive) {
+          scheduleBrokerReconnect(b);
         }
       };
     }
 
-    function scheduleReconnect() {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(() => {
-        if (activeRoomId !== 'LOCAL' && !airplaneModeActive) connectMqtt();
-      }, reconnectDelay);
-      reconnectDelay = Math.min(18000, Math.round(reconnectDelay * 1.6));
+    function scheduleBrokerReconnect(b) {
+      clearTimeout(b.reconnectTimer);
+      b.reconnectTimer = setTimeout(() => {
+        if ((activeRoomId !== 'LOCAL' || pendingJoinCode) && !airplaneModeActive) {
+          connectSingleBroker({ name: b.name, url: b.url });
+        }
+      }, b.delay);
+      b.delay = Math.min(20000, Math.round(b.delay * 1.65));
     }
 
-    function cleanupMqtt(resetBackoff = true) {
-      clearTimeout(reconnectTimer);
-      clearInterval(pingTimer);
-      wsConnected = false;
-      if (ws) {
-        ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
-        try { ws.close(); } catch (_) {}
-        ws = null;
+    function ensureMqttPool() {
+      if ((activeRoomId === 'LOCAL' && !pendingJoinCode) || airplaneModeActive) return;
+      for (const cfg of MQTT_BROKERS) {
+        connectSingleBroker(cfg);
       }
-      if (resetBackoff) reconnectDelay = 1200;
+      notifyStatus();
     }
 
-    // ---- Online WebRTC Mesh Signaling over MQTT ----
+    function cleanupMqttPool() {
+      clearInterval(joinRetryTimer);
+      clearTimeout(joinTimeoutTimer);
+      joinRetryTimer = null;
+      joinTimeoutTimer = null;
+      for (const b of brokerSockets.values()) {
+        clearTimeout(b.reconnectTimer);
+        clearInterval(b.pingTimer);
+        b.connected = false;
+        b.subsSent.clear();
+        if (b.ws) {
+          b.ws.onopen = b.ws.onmessage = b.ws.onerror = b.ws.onclose = null;
+          try { b.ws.close(); } catch (_) {}
+          b.ws = null;
+        }
+        b.delay = 1400;
+      }
+    }
+
+    // ---- Online WebRTC Mesh Signaling over Multi-Broker MQTT ----
     async function initiateOnlineWebRTC(remotePeerId) {
-      if (peers.has(remotePeerId) || MY_DEVICE_ID <= remotePeerId) return;
+      if (MY_DEVICE_ID <= remotePeerId) return;
+      const existing = peers.get(remotePeerId);
+      if (existing) {
+        const isOpen = existing.dc && existing.dc.readyState === 'open';
+        const isFresh = (Date.now() - (existing.createdAt || 0)) < 12000;
+        if (isOpen || isFresh) return;
+        closePeer(remotePeerId);
+      }
       try {
         const pc = new RTCPeerConnection({ iceServers: ICE_ONLINE });
         const dc = pc.createDataChannel('yachti', { ordered: true });
@@ -3708,7 +3867,7 @@
               sendPacket({ type: 'RTC_ICE', targetId: from, candidate: e.candidate }, { mqttOnly: true });
             }
           };
-          peers.set(from, { pc, dc: null, airplane: false, lastSeen: Date.now() });
+          peers.set(from, { pc, dc: null, airplane: false, createdAt: Date.now(), lastSeen: Date.now() });
           await pc.setRemoteDescription(new RTCSessionDescription(pkt.sdp));
           const ans = await pc.createAnswer();
           await pc.setLocalDescription(ans);
@@ -3728,23 +3887,36 @@
     }
 
     function attachPeer(peerId, pc, dc, isAirplane) {
-      const rec = { pc, dc, airplane: isAirplane, lastSeen: Date.now() };
+      const rec = { pc, dc, airplane: isAirplane, createdAt: Date.now(), lastSeen: Date.now() };
       peers.set(peerId, rec);
       if (dc) {
         dc.onopen = () => {
           rec.lastSeen = Date.now();
+          const wasKnown = knownDevices.has(peerId);
           knownDevices.set(peerId, Date.now());
           if (isAirplane) airplaneModeActive = true;
           notifyStatus();
-          // Immediately exchange HELLO + full state over fast P2P DataChannel
+          if (!wasKnown || isAirplane) handlers.onPeerConnected(peerId, isAirplane ? 'airplane' : 'webrtc');
+
+          // Exchange full state if we have an authoritative game (turnSeq > 0), else ask with HELLO
           const st = handlers.getFullState();
-          if (st) {
+          if (st && st.turnSeq > 0) {
             sendRawToDc(dc, {
               type: 'STATE_SYNC',
               roomId: activeRoomId,
               sessionToken: activeToken,
               senderId: MY_DEVICE_ID,
+              msgId: 'ds_' + randomHex(4),
               state: st,
+              sentAt: Date.now()
+            });
+          } else {
+            sendRawToDc(dc, {
+              type: 'HELLO',
+              roomId: activeRoomId,
+              sessionToken: activeToken,
+              senderId: MY_DEVICE_ID,
+              msgId: 'dh_' + randomHex(4),
               sentAt: Date.now()
             });
           }
@@ -3804,29 +3976,27 @@
 
     function compactSdp(desc, meta) {
       const lines = desc.sdp.split(/\r?\n/);
-      let u = '', p = '', f = '', s = 'actpass';
+      let u = '', p = '', f = '', s = 'actpass', mid = '0';
       const cands = [];
       for (const line of lines) {
         if (line.startsWith('a=ice-ufrag:')) u = line.slice(12).trim();
         else if (line.startsWith('a=ice-pwd:')) p = line.slice(10).trim();
         else if (line.startsWith('a=fingerprint:sha-256 ')) f = line.slice(22).trim().replace(/:/g, '');
         else if (line.startsWith('a=setup:')) s = line.slice(8).trim();
+        else if (line.startsWith('a=mid:')) mid = line.slice(6).trim();
         else if (line.startsWith('a=candidate:')) {
           const parts = line.slice(12).trim().split(' ');
-          // Format: foundation comp proto prio ip port typ type
           const proto = (parts[2] || '').toLowerCase();
           const ip = parts[4];
           const port = parseInt(parts[5], 10);
           const typ = parts[7];
           if (proto === 'udp' && ip && port && (typ === 'host' || typ === 'srflx')) {
-            // Keep up to 4 unique candidates, preferring IPv4 local host addresses
             if (!cands.some(c => c[0] === ip && c[1] === port)) {
               cands.push([ip, port, typ === 'host' ? 0 : 1]);
             }
           }
         }
       }
-      // Prioritize IPv4 local candidates so QR stays ultra-compact
       cands.sort((a, b) => {
         const a4 = /^\d+\.\d+\.\d+\.\d+$/.test(a[0]) ? 0 : 1;
         const b4 = /^\d+\.\d+\.\d+\.\d+$/.test(b[0]) ? 0 : 1;
@@ -3835,20 +4005,25 @@
       const compact = {
         t: desc.type === 'offer' ? 'o' : 'a',
         u, p, f, s,
-        c: cands.slice(0, 3),
+        c: cands.slice(0, 4),
         d: MY_DEVICE_ID.slice(-6)
       };
+      if (mid && mid !== '0') compact.m = mid;
       if (meta && meta.r) compact.r = meta.r;
       if (meta && meta.k) compact.k = meta.k;
-      return 'YAIR:' + b64uEncode(JSON.stringify(compact));
+      return {
+        code: 'YAIR:' + b64uEncode(JSON.stringify(compact)),
+        candCount: compact.c.length,
+        hasIpv4: compact.c.some(c => /^\d+\.\d+\.\d+\.\d+$/.test(c[0]))
+      };
     }
 
     function expandSdp(tokenStr) {
       const clean = tokenStr.trim();
       if (!clean.startsWith('YAIR:')) throw new Error('Invalid Airplane Sync code');
       const data = JSON.parse(b64uDecode(clean.slice(5)));
-      // Re-insert colons into sha-256 fingerprint
       const fp = data.f.match(/.{1,2}/g).join(':').toUpperCase();
+      const mid = data.m || '0';
       const candLines = (data.c || []).map((c, idx) => {
         const typ = c[2] === 1 ? 'srflx' : 'host';
         const prio = 2122260223 - idx * 100;
@@ -3859,7 +4034,7 @@
         'o=- 4611731400430051336 2 IN IP4 127.0.0.1',
         's=-',
         't=0 0',
-        'a=group:BUNDLE 0',
+        `a=group:BUNDLE ${mid}`,
         'a=msid-semantic: WMS',
         'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
         'c=IN IP4 0.0.0.0',
@@ -3868,7 +4043,7 @@
         'a=ice-options:trickle',
         `a=fingerprint:sha-256 ${fp}`,
         `a=setup:${data.s}`,
-        'a=mid:0',
+        `a=mid:${mid}`,
         'a=sctp-port:5000',
         'a=max-message-size:262144',
         ...candLines,
@@ -3883,7 +4058,7 @@
       };
     }
 
-    function waitIceGathering(pc, maxMs = 2600) {
+    function waitIceGathering(pc, maxMs = 2800) {
       return new Promise((resolve) => {
         if (pc.iceGatheringState === 'complete') return resolve();
         let done = false;
@@ -3902,7 +4077,7 @@
           if (e.candidate) {
             seenCand = true;
             clearTimeout(softTimer);
-            softTimer = setTimeout(finish, 450);
+            softTimer = setTimeout(finish, 500);
           } else if (seenCand) {
             clearTimeout(hardTimer);
             finish();
@@ -3912,22 +4087,21 @@
     }
 
     async function createAirplaneOffer(roomId, sessionToken) {
-      // Ensure local room credentials exist for packet validation
       activeRoomId = roomId;
       activeToken = sessionToken;
       channelKey = deriveChannelKey(roomId, sessionToken);
+      pendingJoinCode = '';
       airplaneModeActive = true;
-      cleanupMqtt(true);
+      cleanupMqttPool();
 
       const pc = new RTCPeerConnection({ iceServers: [] });
       const dc = pc.createDataChannel('yachti', { ordered: true });
       airPendingPc = pc;
       airPendingDc = dc;
-      airPendingPeerId = 'air_' + randomHex(4);
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await waitIceGathering(pc, 2600);
+      await waitIceGathering(pc, 2800);
       return compactSdp(pc.localDescription, { r: roomId, k: sessionToken });
     }
 
@@ -3939,8 +4113,9 @@
       activeRoomId = parsed.roomId;
       activeToken = parsed.sessionToken;
       channelKey = deriveChannelKey(activeRoomId, activeToken);
+      pendingJoinCode = '';
       airplaneModeActive = true;
-      cleanupMqtt(true);
+      cleanupMqttPool();
 
       const pc = new RTCPeerConnection({ iceServers: [] });
       const peerId = 'air_host_' + parsed.remoteShortId;
@@ -3949,11 +4124,14 @@
       await pc.setRemoteDescription(new RTCSessionDescription(parsed.desc));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await waitIceGathering(pc, 2600);
+      await waitIceGathering(pc, 2800);
 
       notifyStatus();
+      const packed = compactSdp(pc.localDescription, {});
       return {
-        answerCode: compactSdp(pc.localDescription, {}),
+        answerCode: packed.code,
+        candCount: packed.candCount,
+        hasIpv4: packed.hasIpv4,
         roomId: activeRoomId,
         sessionToken: activeToken
       };
@@ -3979,22 +4157,27 @@
       try { pkt = JSON.parse(rawStr); } catch (_) { return; }
       if (!pkt || typeof pkt !== 'object') return;
       if (pkt.senderId === MY_DEVICE_ID) return;
+      if (pkt.msgId && markSeen(pkt.msgId)) return;
 
-      // Timed 4-character Room Code Join Handshake (strictly separated from gameplay channel)
+      // 4-Character Room Code Join Handshake (strictly isolated from gameplay packets)
       if (topic && topic.startsWith('yachti/v1/join/')) {
-        if (pkt.type === 'JOIN_REQ' && pkt.roomId === activeRoomId && isHostingJoin && activeToken) {
-          if (ws && ws.readyState === 1) {
-            const grant = JSON.stringify({
-              type: 'JOIN_GRANT',
-              roomId: activeRoomId,
-              sessionToken: activeToken,
-              targetId: pkt.senderId,
-              senderId: MY_DEVICE_ID
-            });
-            ws.send(mqttPublishPacket(`yachti/v1/join/${activeRoomId}`, grant, false));
-          }
-        } else if (pkt.type === 'JOIN_GRANT' && pkt.targetId === MY_DEVICE_ID && pkt.roomId === activeRoomId && pkt.sessionToken) {
-          handlers.onJoinGrantReceived(pkt.roomId, pkt.sessionToken);
+        if (pkt.type === 'JOIN_REQ' && pkt.roomId === activeRoomId && activeRoomId !== 'LOCAL' && activeToken) {
+          publishJoinGrant(activeRoomId, pkt.senderId);
+        } else if (
+          pkt.type === 'JOIN_GRANT' &&
+          pendingJoinCode &&
+          pkt.roomId === pendingJoinCode &&
+          (!pkt.targetId || pkt.targetId === '*' || pkt.targetId === MY_DEVICE_ID) &&
+          pkt.sessionToken
+        ) {
+          const foundRoom = pkt.roomId;
+          const foundToken = pkt.sessionToken;
+          pendingJoinCode = '';
+          clearInterval(joinRetryTimer);
+          clearTimeout(joinTimeoutTimer);
+          joinRetryTimer = null;
+          joinTimeoutTimer = null;
+          handlers.onJoinGrantReceived(foundRoom, foundToken);
         }
         return;
       }
@@ -4004,8 +4187,10 @@
         return;
       }
 
+      const wasKnown = knownDevices.has(pkt.senderId);
       knownDevices.set(pkt.senderId, Date.now());
       notifyStatus();
+      if (!wasKnown) handlers.onPeerConnected(pkt.senderId, transport);
 
       if (pkt.type === 'RTC_OFFER' || pkt.type === 'RTC_ANSWER' || pkt.type === 'RTC_ICE') {
         handleRtcSignal(pkt);
@@ -4016,11 +4201,18 @@
         if (!airplaneModeActive && transport === 'mqtt') {
           initiateOnlineWebRTC(pkt.senderId);
         }
-        // Reply with full state snapshot so reconnecting / joining device converges immediately
+        // Only reply with STATE_SYNC if we hold an authoritative game (turnSeq > 0)
         const st = handlers.getFullState();
-        if (st && Date.now() > wakeSuppressUntil) {
+        if (st && st.turnSeq > 0 && Date.now() > wakeSuppressUntil) {
           sendPacket({ type: 'STATE_SYNC', state: st });
         }
+        return;
+      }
+
+      // If a brand-new joining peer sends turnSeq=0, reply with our authoritative state
+      if (pkt.type === 'STATE_SYNC' && pkt.state && pkt.state.turnSeq === 0) {
+        const st = handlers.getFullState();
+        if (st && st.turnSeq > 0) sendPacket({ type: 'STATE_SYNC', state: st });
         return;
       }
 
@@ -4035,6 +4227,7 @@
         roomId: activeRoomId,
         sessionToken: activeToken,
         senderId: MY_DEVICE_ID,
+        msgId: 'm_' + randomHex(5),
         sentAt: Date.now()
       });
       const json = JSON.stringify(full);
@@ -4045,52 +4238,70 @@
       }
 
       // 2. Direct WebRTC DataChannels (<50ms online / <20ms Airplane PAN)
-      let sentViaRtc = 0;
       if (!mqttOnly) {
         for (const rec of peers.values()) {
           if (rec.dc && rec.dc.readyState === 'open') {
-            try { rec.dc.send(json); sentViaRtc++; } catch (_) {}
+            try { rec.dc.send(json); } catch (_) {}
           }
         }
       }
 
-      // 3. MQTT-over-WSS (discovery, signaling, & resilient fallback)
-      if (!airplaneModeActive && ws && ws.readyState === 1 && channelKey) {
-        // Always mirror on MQTT unless purely airplane mode, ensuring late/unmeshed peers never miss an event
-        try { ws.send(mqttPublishPacket(`yachti/v1/ch/${channelKey}`, json, retain)); } catch (_) {}
+      // 3. Parallel Multi-Broker MQTT-over-WSS (guarantees delivery across all live relays)
+      if (!airplaneModeActive && channelKey) {
+        publishOnAllBrokers(`yachti/v1/ch/${channelKey}`, json, retain);
       }
     }
 
-    function sendHello(retain = false) {
+    function sendHello() {
       if (activeRoomId === 'LOCAL' || !activeToken) return;
-      sendPacket({ type: 'HELLO' }, { retain });
+      sendPacket({ type: 'HELLO' }, { retain: false });
     }
 
     function requestJoinByCode(roomCode) {
-      activeRoomId = roomCode;
-      activeToken = '';
-      channelKey = '';
+      const code = roomCode.toUpperCase().trim();
+      pendingJoinCode = code;
       airplaneModeActive = false;
-      connectMqtt();
-      const sendReq = () => {
-        if (ws && ws.readyState === 1) {
-          ws.send(mqttSubscribePacket(`yachti/v1/join/${roomCode}`));
-          ws.send(mqttPublishPacket(`yachti/v1/join/${roomCode}`, JSON.stringify({
-            type: 'JOIN_REQ',
-            roomId: roomCode,
-            senderId: MY_DEVICE_ID
-          }), false));
-        }
-      };
-      setTimeout(sendReq, 700);
-      setTimeout(sendReq, 2200);
+      clearInterval(joinRetryTimer);
+      clearTimeout(joinTimeoutTimer);
+
+      // Connect all brokers in parallel; CONNACK handler automatically subscribes & sends JOIN_REQ
+      ensureMqttPool();
+      subscribeAllConnectedBrokers();
+      sendJoinRequestNow();
+
+      joinRetryTimer = setInterval(() => {
+        if (!pendingJoinCode) { clearInterval(joinRetryTimer); return; }
+        subscribeAllConnectedBrokers();
+        sendJoinRequestNow();
+      }, 1600);
+
+      joinTimeoutTimer = setTimeout(() => {
+        if (!pendingJoinCode) return;
+        const timedOutCode = pendingJoinCode;
+        pendingJoinCode = '';
+        clearInterval(joinRetryTimer);
+        joinRetryTimer = null;
+        handlers.onJoinTimeout(timedOutCode, getConnectedBrokerNames().length);
+      }, 16000);
     }
 
     function joinChannel(roomId, sessionToken, { isAirplane = false } = {}) {
-      if (activeRoomId === roomId && activeToken === sessionToken && !!airplaneModeActive === !!isAirplane) {
-        if (!isAirplane && !wsConnected) connectMqtt();
+      const sameRoom = activeRoomId === roomId && activeToken === sessionToken && !!airplaneModeActive === !!isAirplane;
+      pendingJoinCode = '';
+      clearInterval(joinRetryTimer);
+      clearTimeout(joinTimeoutTimer);
+      joinRetryTimer = null;
+      joinTimeoutTimer = null;
+
+      if (sameRoom) {
+        if (!isAirplane) {
+          ensureMqttPool();
+          subscribeAllConnectedBrokers();
+          sendHello();
+        }
         return;
       }
+
       if (!isAirplane) closeAllPeers();
       if (bc) { try { bc.close(); } catch (_) {} bc = null; }
 
@@ -4107,27 +4318,42 @@
       }
 
       if (roomId !== 'LOCAL' && !airplaneModeActive) {
-        connectMqtt();
+        // Reuse any already-open broker sockets and connect the rest in parallel!
+        ensureMqttPool();
+        subscribeAllConnectedBrokers();
+        setTimeout(() => {
+          if (activeRoomId === roomId && activeToken === sessionToken) {
+            subscribeAllConnectedBrokers();
+            sendHello();
+            const st = handlers.getFullState();
+            if (st && st.turnSeq > 0) sendPacket({ type: 'STATE_SYNC', state: st }, { retain: true });
+          }
+        }, 320);
+        // Second HELLO nudge in case first arrived before peer finished subscribing
+        setTimeout(() => {
+          if (activeRoomId === roomId && activeToken === sessionToken && knownDevices.size === 0) {
+            sendHello();
+          }
+        }, 1600);
       } else {
-        cleanupMqtt(true);
+        cleanupMqttPool();
       }
       notifyStatus();
     }
 
     function disconnect() {
-      isHostingJoin = false;
+      pendingJoinCode = '';
       airplaneModeActive = false;
       activeRoomId = 'LOCAL';
       activeToken = '';
       channelKey = '';
-      cleanupMqtt(true);
+      cleanupMqttPool();
       closeAllPeers();
       if (bc) { try { bc.close(); } catch (_) {} bc = null; }
       notifyStatus();
     }
 
     function getStatus() {
-      // Prune stale peer heartbeats > 90s for online view
       const now = Date.now();
       let openRtc = 0;
       let airRtc = 0;
@@ -4139,27 +4365,30 @@
       }
       let activePeerCount = openRtc;
       for (const [id, ts] of knownDevices.entries()) {
-        if (now - ts < 120000 && !peers.has(id)) activePeerCount++;
+        if (now - ts < 180000 && !peers.has(id)) activePeerCount++;
       }
       const deviceCount = 1 + activePeerCount;
+      const connectedBrokers = getConnectedBrokerNames();
+
       if (airplaneModeActive) {
         return {
           kind: airRtc > 0 ? 'airplane' : 'connecting',
           label: airRtc > 0 ? `✈️ Airplane · ${deviceCount}` : '✈️ Pairing…',
           deviceCount,
-          openRtc
+          openRtc,
+          brokers: []
         };
       }
       if (activeRoomId === 'LOCAL') {
-        return { kind: 'local', label: 'Local', deviceCount: 1, openRtc: 0 };
+        return { kind: 'local', label: 'Local', deviceCount: 1, openRtc: 0, brokers: connectedBrokers };
       }
       if (openRtc > 0) {
-        return { kind: 'live', label: `P2P Live · ${deviceCount}`, deviceCount, openRtc };
+        return { kind: 'live', label: `P2P Live · ${deviceCount}`, deviceCount, openRtc, brokers: connectedBrokers };
       }
-      if (wsConnected) {
-        return { kind: 'live', label: `Room ${activeRoomId} · ${deviceCount}`, deviceCount, openRtc: 0 };
+      if (connectedBrokers.length > 0) {
+        return { kind: 'live', label: `Room ${activeRoomId} · ${deviceCount}`, deviceCount, openRtc: 0, brokers: connectedBrokers };
       }
-      return { kind: 'connecting', label: `Connecting…`, deviceCount, openRtc: 0 };
+      return { kind: 'connecting', label: `Connecting…`, deviceCount, openRtc: 0, brokers: [] };
     }
 
     function notifyStatus() {
@@ -4168,11 +4397,12 @@
 
     // Wake / Visibility-Change Collision Guard & Online Reconnect Hardening
     function handleWake() {
-      if (activeRoomId === 'LOCAL') return;
-      wakeSuppressUntil = Date.now() + 850;
+      if (activeRoomId === 'LOCAL' && !pendingJoinCode) return;
+      wakeSuppressUntil = Date.now() + 700;
       if (!airplaneModeActive) {
-        if (!ws || ws.readyState !== 1) connectMqtt();
-        else sendHello(false);
+        ensureMqttPool();
+        subscribeAllConnectedBrokers();
+        setTimeout(() => sendHello(), 250);
       } else {
         for (const rec of peers.values()) {
           if (rec.dc && rec.dc.readyState === 'open') {
@@ -4181,6 +4411,7 @@
               roomId: activeRoomId,
               sessionToken: activeToken,
               senderId: MY_DEVICE_ID,
+              msgId: 'wh_' + randomHex(4),
               sentAt: Date.now()
             });
           }
@@ -4193,7 +4424,7 @@
     });
     window.addEventListener('online', handleWake);
     window.addEventListener('focus', () => {
-      if (activeRoomId !== 'LOCAL' && !airplaneModeActive && (!ws || ws.readyState !== 1)) handleWake();
+      if (activeRoomId !== 'LOCAL' && !airplaneModeActive && getConnectedBrokerNames().length === 0) handleWake();
     });
 
     function init(h) {
@@ -4207,14 +4438,12 @@
       sendPacket,
       sendHello,
       getStatus,
-      setHostingJoin: (v) => { isHostingJoin = !!v; },
       requestJoinByCode,
       createAirplaneOffer,
       acceptAirplaneOffer,
       completeAirplaneHost
     };
   })();
-
 
   /* ============================================================================
    * MODULE 5B: YACHTI AI ENGINE (EXACT MULTISET EV + JOKER-COMPLIANT STRATEGY)
@@ -4472,6 +4701,8 @@
   let quickPickTarget = null;
   let lastAirOfferCode = '';
   let lastAirAnswerCode = '';
+  let awaitingRoomSync = false;
+  let activeLinkTab = 'online';
 
   // Setup modal temporary selections & AI turn runner
   let setupDraft = { mode: '3d', vsComputer: false, aiLevel: 'pro', aiName: 'Yachti Bot', count: 2, names: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'] };
@@ -4557,7 +4788,6 @@
     $(id).classList.remove('open');
     if (id === 'modalLink') {
       stopQrScanner();
-      SyncEngine.setHostingJoin(false);
     }
   }
 
@@ -4687,17 +4917,30 @@
       DiceEngine.syncFromState(state.turnState, !heldChanged);
     }
 
+    const receivedInitialRoomSync = awaitingRoomSync && state.turnSeq > 0;
+    if (receivedInitialRoomSync) awaitingRoomSync = false;
+
     cancelAiTurn();
     renderAll();
-    if (state.gameStatus === 'finished') openFinishModal();
-    else scheduleAiTurnIfNeeded();
+    if (state.gameStatus === 'finished') {
+      openFinishModal();
+    } else {
+      scheduleAiTurnIfNeeded();
+      if (receivedInitialRoomSync && getMyClaimedPlayerIndices().length === 0) {
+        closeModal('modalLink');
+        openSeatPicker();
+        showToast(`Synced Room ${state.roomId}! Pick your seat`);
+      } else if ($('modalSeat').classList.contains('open')) {
+        openSeatPicker();
+      }
+    }
     return true;
   }
 
   function broadcastFullState() {
     state.updatedAt = Date.now();
     saveStateLocal();
-    SyncEngine.sendPacket({ type: 'STATE_SYNC', state });
+    SyncEngine.sendPacket({ type: 'STATE_SYNC', state }, { retain: state.turnSeq > 0 });
   }
 
   // ---- Core Gameplay Actions ----
@@ -5593,18 +5836,21 @@
   // ---- Link / Invite & ✈️ Airplane Sync Modal ----
   function openLinkModal(tab = 'online') {
     stopQrScanner();
+    $('joinStatusText').classList.add('hidden');
     switchLinkTab(tab);
     updateSyncModalUI();
-    if (state.roomId !== 'LOCAL') SyncEngine.setHostingJoin(true);
     openModal('modalLink');
   }
 
   function switchLinkTab(tab) {
-    const isAir = tab === 'airplane';
+    activeLinkTab = tab === 'airplane' ? 'airplane' : 'online';
+    const isAir = activeLinkTab === 'airplane';
     $('tabOnlineSync').classList.toggle('active', !isAir);
     $('tabAirplaneSync').classList.toggle('active', isAir);
-    $('panelOnlineSync').classList.toggle('hidden', isAir);
-    $('panelAirplaneSync').classList.toggle('hidden', !isAir);
+    if ($('qrScannerPanel').classList.contains('hidden')) {
+      $('panelOnlineSync').classList.toggle('hidden', isAir);
+      $('panelAirplaneSync').classList.toggle('hidden', !isAir);
+    }
   }
 
   function updateSyncModalUI() {
@@ -5620,9 +5866,20 @@
 
     if (hosted) {
       $('displayRoomCode').textContent = state.roomId;
-      $('displayPeerSummary').textContent = st.deviceCount > 1
-        ? `${st.deviceCount} devices linked live (${st.openRtc > 0 ? 'Direct P2P' : 'Relay'})`
-        : 'Room live — scan QR or share link to invite players';
+      const summary = $('displayPeerSummary');
+      if (st.deviceCount > 1) {
+        summary.style.color = 'var(--green-ok)';
+        summary.textContent = `● ${st.deviceCount} devices linked live (${st.openRtc > 0 ? 'Direct P2P' : st.brokers.join(' / ') || 'Relay'})`;
+      } else if (st.kind === 'airplane') {
+        summary.style.color = 'var(--sky)';
+        summary.textContent = '✈️ Airplane P2P linked';
+      } else if (st.brokers && st.brokers.length > 0) {
+        summary.style.color = 'var(--green-ok)';
+        summary.textContent = `● Relay online (${st.brokers.join(', ')}) — scan QR or enter code on other device`;
+      } else {
+        summary.style.color = 'var(--amber)';
+        summary.textContent = '⏳ Connecting to sync relay… (check internet or use ✈️ Airplane Sync)';
+      }
       try {
         QRCodeGen.renderToCanvas($('roomQrCanvas'), buildShareUrl());
       } catch (_) {}
@@ -5638,29 +5895,32 @@
   function createLiveRoom() {
     state.roomId = generateRoomCode();
     state.sessionToken = randomHex(16);
-    state.turnSeq++;
+    state.turnSeq = Math.max(1, state.turnSeq + 1);
+    awaitingRoomSync = false;
     saveStateLocal();
-    SyncEngine.setHostingJoin(true);
     SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false });
     history.replaceState(null, '', `#r=${state.roomId}&t=${state.sessionToken}`);
     updateSyncModalUI();
-    showToast(`Room ${state.roomId} ready!`);
+    showToast(`Room ${state.roomId} created — connecting relay…`);
   }
 
   function handleJoinRoomInput(rawInput) {
     const val = (rawInput || '').trim();
     if (!val) return;
+    const jStatus = $('joinStatusText');
 
     // Case 1: Full URL or hash containing room + token
     const mRoom = val.match(/[?#&](?:r|room)=([A-Za-z0-9]{4})/i);
     const mTok = val.match(/[?#&](?:t|token)=([A-Za-z0-9_-]{8,})/i);
     if (mRoom && mTok) {
+      jStatus.classList.add('hidden');
       connectToOnlineRoom(mRoom[1].toUpperCase(), mTok[1], true);
       return;
     }
 
     // Case 2: Airplane Sync token pasted directly
     if (val.startsWith('YAIR:')) {
+      jStatus.classList.add('hidden');
       switchLinkTab('airplane');
       handleGuestApplyOffer(val);
       return;
@@ -5669,7 +5929,10 @@
     // Case 3: 4-character Room Code
     const code = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length === 4) {
-      showToast(`Looking for Room ${code}… (keep Host's Link screen open)`, 3200);
+      jStatus.textContent = `⏳ Searching relays for Room ${code}…`;
+      jStatus.style.color = 'var(--amber)';
+      jStatus.classList.remove('hidden');
+      showToast(`Connecting to Room ${code}…`);
       SyncEngine.requestJoinByCode(code);
       return;
     }
@@ -5679,16 +5942,15 @@
   function connectToOnlineRoom(roomId, sessionToken, promptSeat = true) {
     state.roomId = roomId;
     state.sessionToken = sessionToken;
-    state.turnSeq = 0; // Allow incoming room state to take authority immediately
+    state.turnSeq = 0; // Allow authoritative Host state to replace our local stub immediately
+    awaitingRoomSync = !!promptSeat;
     saveStateLocal();
     history.replaceState(null, '', `#r=${roomId}&t=${sessionToken}`);
     SyncEngine.joinChannel(roomId, sessionToken, { isAirplane: false });
+    $('joinStatusText').classList.add('hidden');
     closeModal('modalLink');
     updateSyncModalUI();
-    showToast(`Joined Room ${roomId}!`);
-    if (promptSeat) {
-      setTimeout(() => openSeatPicker(), 900);
-    }
+    showToast(`Connecting to Room ${roomId}…`);
   }
 
   // ---- ✈️ Airplane Sync Flows ----
@@ -5700,13 +5962,20 @@
     if (state.roomId === 'LOCAL') {
       state.roomId = generateRoomCode();
       state.sessionToken = randomHex(16);
+      state.turnSeq = Math.max(1, state.turnSeq + 1);
       saveStateLocal();
     }
     try {
-      const code = await SyncEngine.createAirplaneOffer(state.roomId, state.sessionToken);
-      lastAirOfferCode = code;
-      QRCodeGen.renderToCanvas($('airOfferQr'), code);
-      $('airStatusText').textContent = 'Offer QR ready! Have Guest scan it, then tap Step 2 to scan their Answer.';
+      const packed = await SyncEngine.createAirplaneOffer(state.roomId, state.sessionToken);
+      lastAirOfferCode = packed.code;
+      QRCodeGen.renderToCanvas($('airOfferQr'), packed.code);
+      if (packed.candCount === 0) {
+        $('airStatusText').textContent = '⚠️ No local network address found — turn on Bluetooth Tethering or Hotspot, then tap Host again.';
+      } else if (!packed.hasIpv4) {
+        $('airStatusText').textContent = 'Offer QR ready! Tip: if pairing stalls, enable Hotspot and grant camera permission.';
+      } else {
+        $('airStatusText').textContent = 'Offer QR ready! Have Guest scan it, then tap Step 2 to scan their Answer.';
+      }
     } catch (err) {
       $('airStatusText').textContent = 'Could not create Airplane Offer: ' + err.message;
     }
@@ -5732,12 +6001,15 @@
       state.roomId = res.roomId;
       state.sessionToken = res.sessionToken;
       state.turnSeq = 0;
+      awaitingRoomSync = true;
       saveStateLocal();
       lastAirAnswerCode = res.answerCode;
       QRCodeGen.renderToCanvas($('airAnswerQr'), res.answerCode);
       $('airGuestStep1').classList.add('hidden');
       $('airGuestStep2').classList.remove('hidden');
-      $('airStatusText').textContent = 'Answer QR ready! Let Host scan this to complete the link.';
+      $('airStatusText').textContent = res.candCount === 0
+        ? '⚠️ No local link detected — check Bluetooth Tethering / Hotspot.'
+        : 'Answer QR ready! Let Host scan this to complete the link.';
     } catch (err) {
       $('airStatusText').textContent = 'Offer error: ' + err.message;
       showToast('Could not parse Offer code');
@@ -5753,7 +6025,7 @@
     $('airStatusText').textContent = 'Connecting direct P2P channel…';
     try {
       await SyncEngine.completeAirplaneHost(clean);
-      $('airStatusText').textContent = '✈️ Linked! Waiting for DataChannel lock…';
+      $('airStatusText').textContent = '✈️ Handshake sent — locking direct P2P channel…';
       showToast('✈️ Airplane P2P handshake sent!');
     } catch (err) {
       $('airStatusText').textContent = 'Answer error: ' + err.message;
@@ -5767,6 +6039,10 @@
     qrScannerCallback = onDecoded;
     const panel = $('qrScannerPanel');
     const msg = $('qrScannerMsg');
+    // Hide tabs/panels while scanning so camera viewfinder sits immediately at top of modal
+    $('linkTabsBar').classList.add('hidden');
+    $('panelOnlineSync').classList.add('hidden');
+    $('panelAirplaneSync').classList.add('hidden');
     panel.classList.remove('hidden');
     msg.textContent = 'Starting camera…';
 
@@ -5823,6 +6099,9 @@
     const video = $('qrVideo');
     if (video) video.srcObject = null;
     $('qrScannerPanel').classList.add('hidden');
+    $('linkTabsBar').classList.remove('hidden');
+    $('panelOnlineSync').classList.toggle('hidden', activeLinkTab === 'airplane');
+    $('panelAirplaneSync').classList.toggle('hidden', activeLinkTab !== 'airplane');
     qrScannerCallback = null;
   }
 
@@ -6057,6 +6336,7 @@
     $('tabOnlineSync').addEventListener('click', () => switchLinkTab('online'));
     $('tabAirplaneSync').addEventListener('click', () => switchLinkTab('airplane'));
     $('btnCreateRoom').addEventListener('click', createLiveRoom);
+    $('btnRoomNewGame').addEventListener('click', () => { closeModal('modalLink'); openSetupModal(); });
     $('btnLeaveRoom').addEventListener('click', () => {
       SyncEngine.disconnect();
       state.roomId = 'LOCAL';
@@ -6195,9 +6475,36 @@
     SyncEngine.init({
       onPacket: handleRemotePacket,
       onStatusChange: () => updateSyncModalUI(),
+      onPeerConnected: (peerId, transport) => {
+        updateSyncModalUI();
+        if (transport === 'airplane') {
+          $('airStatusText').textContent = '✈️ Connected! Direct P2P link active.';
+          showToast('✈️ Airplane P2P linked!');
+          if (!awaitingRoomSync) closeModal('modalLink');
+        } else {
+          showToast('🔗 Another device linked to this room!');
+        }
+      },
       getFullState: () => state,
       onJoinGrantReceived: (roomId, token) => {
         connectToOnlineRoom(roomId, token, true);
+      },
+      onJoinTimeout: (code, brokerCount) => {
+        const jStatus = $('joinStatusText');
+        jStatus.style.color = 'var(--red-muted)';
+        jStatus.textContent = brokerCount === 0
+          ? 'Could not reach sync relays — check internet or use ✈️ Airplane Sync.'
+          : `Room ${code} did not respond — check the code or scan the QR link instead.`;
+        jStatus.classList.remove('hidden');
+        showToast(`Could not find Room ${code}`);
+      }
+    });
+
+    // Support opening a share link / QR URL when Yachti is already open in a tab or PWA
+    window.addEventListener('hashchange', () => {
+      const hr = parseRoomHash();
+      if (hr && (!state || state.roomId !== hr.roomId || state.sessionToken !== hr.sessionToken)) {
+        connectToOnlineRoom(hr.roomId, hr.sessionToken, true);
       }
     });
 
@@ -6206,10 +6513,10 @@
     renderAll();
 
     if (state.roomId !== 'LOCAL' && state.sessionToken) {
-      SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false });
-      if (hashRoom && getMyClaimedPlayerIndices().length === 0) {
-        setTimeout(() => openSeatPicker(), 1100);
+      if (hashRoom && state.turnSeq === 0) {
+        awaitingRoomSync = true;
       }
+      SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false });
     } else if (!saved) {
       // Fresh first launch: show crisp 1-step setup so user can pick 1-6 players or vs Computer
       openSetupModal();

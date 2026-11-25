@@ -1,5 +1,5 @@
-/* Yachti v1.1.0 Service Worker — Network-First with Offline Cache Fallback */
-const CACHE_NAME = 'yachti-v1.1.0';
+/* Yachti v1.1.1 Service Worker — Network-First with Offline Cache Fallback */
+const CACHE_NAME = 'yachti-v1.1.1';
 const CORE_ASSETS = [
   './',
   './index.html',

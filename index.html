@@ -21,12 +21,35 @@
     --bg-card: #142c23;
     --bg-card-alt: #18342a;
     --bg-elev: #1d3e32;
-    --felt-dark: #0e3425;
-    --felt-mid: #144934;
+    --bg-strip: #0d1d16;
+    --th-bg: #0d1f18;
+    --th-active-bg: #25301f;
+    --td-active-bg: #152a21;
+    --section-bg: #0c1a14;
+    --summary-bg: #10261d;
+    --grand-bg: #153428;
+    --surface-soft: rgba(255, 255, 255, 0.06);
+    --surface-hover: rgba(255, 255, 255, 0.12);
+    --surface-subtle: rgba(255, 255, 255, 0.045);
+    --surface-inset: rgba(0, 0, 0, 0.26);
+    --modal-chrome: rgba(0, 0, 0, 0.16);
+    --cell-idle: rgba(255, 255, 255, 0.16);
+    --cell-border: rgba(255, 255, 255, 0.05);
+    --btn-disabled-bg: #233b31;
+    --btn-disabled-fg: #7d968b;
+    --toast-bg: #0c1f17;
+    --info-strip-bg: rgba(56, 189, 248, 0.12);
+    --info-strip-border: rgba(56, 189, 248, 0.28);
+    --info-strip-fg: #bae6fd;
+    --joker-fg: #fde68a;
+    --handoff-fg: #fef3c7;
+    --just-scored-fg: #fef08a;
     --wood-rail: #5c3a21;
     --wood-dark: #3b2312;
     --gold: #e5b94c;
     --gold-dim: rgba(229, 185, 76, 0.2);
+    --accent-grad: linear-gradient(180deg, #eec65d 0%, #c99728 100%);
+    --accent-fg: #161004;
     --green-ok: #34d399;
     --green-soft: rgba(52, 211, 153, 0.16);
     --red-muted: #f87171;
@@ -44,6 +67,194 @@
     --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  /* Dark Color Palettes */
+  [data-palette="navy"] {
+    --bg-deep: #08111e;
+    --bg-panel: #0e1c30;
+    --bg-card: #13253d;
+    --bg-card-alt: #182f4c;
+    --bg-elev: #1e3a5c;
+    --bg-strip: #0b1627;
+    --th-bg: #0c192c;
+    --th-active-bg: #1c2f47;
+    --td-active-bg: #13253b;
+    --section-bg: #0a1524;
+    --summary-bg: #102138;
+    --grand-bg: #162e4d;
+    --toast-bg: #0c1a2e;
+    --btn-disabled-bg: #1c314c;
+    --btn-disabled-fg: #7e97b8;
+    --wood-rail: #4b392b;
+    --wood-dark: #2c2017;
+    --gold: #f0c35b;
+    --gold-dim: rgba(240, 195, 91, 0.2);
+    --text-muted: #9db4d0;
+    --text-dim: #6b84a3;
+  }
+
+  [data-palette="burgundy"] {
+    --bg-deep: #170a0f;
+    --bg-panel: #251018;
+    --bg-card: #2e151f;
+    --bg-card-alt: #381a26;
+    --bg-elev: #44212f;
+    --bg-strip: #1f0d14;
+    --th-bg: #210e15;
+    --th-active-bg: #3b2223;
+    --td-active-bg: #2b151d;
+    --section-bg: #1b0b11;
+    --summary-bg: #28121b;
+    --grand-bg: #381925;
+    --toast-bg: #220e16;
+    --btn-disabled-bg: #3b1e29;
+    --btn-disabled-fg: #a98693;
+    --wood-rail: #5e3422;
+    --wood-dark: #381b10;
+    --gold: #efc462;
+    --gold-dim: rgba(239, 196, 98, 0.22);
+    --text-muted: #c2a0ac;
+    --text-dim: #8f6c78;
+  }
+
+  [data-palette="slate"] {
+    --bg-deep: #0e1318;
+    --bg-panel: #161d24;
+    --bg-card: #1c252e;
+    --bg-card-alt: #232e39;
+    --bg-elev: #2a3744;
+    --bg-strip: #12181f;
+    --th-bg: #141b22;
+    --th-active-bg: #1e3136;
+    --td-active-bg: #1a262c;
+    --section-bg: #10161c;
+    --summary-bg: #18212a;
+    --grand-bg: #1f2e38;
+    --toast-bg: #131a21;
+    --btn-disabled-bg: #26323d;
+    --btn-disabled-fg: #8294a6;
+    --wood-rail: #3a4652;
+    --wood-dark: #232b33;
+    --gold: #4fd1c5;
+    --gold-dim: rgba(79, 209, 197, 0.18);
+    --accent-grad: linear-gradient(180deg, #5eead4 0%, #14b8a6 100%);
+    --accent-fg: #041c1a;
+    --text-muted: #9fb0c2;
+    --text-dim: #6f8296;
+  }
+
+  /* Light Mode Overrides (High-Contrast Daylight UI with 100% Opaque Sticky Headers) */
+  [data-theme="light"] {
+    --bg-deep: #e8efe9;
+    --bg-panel: #f7faf8;
+    --bg-card: #ffffff;
+    --bg-card-alt: #f0f5f2;
+    --bg-elev: #e4ede7;
+    --bg-strip: #edf3ef;
+    --th-bg: #e4ede7;
+    --th-active-bg: #f6e7bd;
+    --td-active-bg: #fdf8e8;
+    --section-bg: #e1ece5;
+    --summary-bg: #eef4f0;
+    --grand-bg: #e3efe7;
+    --surface-soft: rgba(15, 34, 27, 0.06);
+    --surface-hover: rgba(15, 34, 27, 0.12);
+    --surface-subtle: rgba(15, 34, 27, 0.04);
+    --surface-inset: rgba(15, 34, 27, 0.06);
+    --modal-chrome: rgba(15, 34, 27, 0.04);
+    --cell-idle: rgba(15, 34, 27, 0.22);
+    --cell-border: rgba(15, 34, 27, 0.08);
+    --btn-disabled-bg: #d9e4dd;
+    --btn-disabled-fg: #6b8075;
+    --toast-bg: #152b22;
+    --info-strip-bg: #e0f2fe;
+    --info-strip-border: #7dd3fc;
+    --info-strip-fg: #0369a1;
+    --joker-fg: #78350f;
+    --handoff-fg: #713f12;
+    --just-scored-fg: #92400e;
+    --gold: #a67408;
+    --gold-dim: rgba(166, 116, 8, 0.14);
+    --green-ok: #047857;
+    --green-soft: rgba(5, 150, 105, 0.13);
+    --red-muted: #dc2626;
+    --red-soft: rgba(220, 38, 38, 0.10);
+    --amber: #b45309;
+    --sky: #0284c7;
+    --text-main: #11231b;
+    --text-muted: #466155;
+    --text-dim: #6c857a;
+    --border: rgba(15, 34, 27, 0.12);
+    --border-strong: rgba(15, 34, 27, 0.22);
+    --shadow-lg: 0 12px 32px rgba(15, 34, 27, 0.18);
+  }
+
+  [data-theme="light"][data-palette="navy"] {
+    --bg-deep: #e6edf5;
+    --bg-panel: #f7fafe;
+    --bg-card: #ffffff;
+    --bg-strip: #ecf2f9;
+    --th-bg: #e1ebf5;
+    --th-active-bg: #f6e7bd;
+    --td-active-bg: #f5f8fc;
+    --section-bg: #dde8f4;
+    --summary-bg: #ebf2f9;
+    --grand-bg: #dce8f5;
+    --btn-disabled-bg: #d7e2ee;
+    --btn-disabled-fg: #667c94;
+    --toast-bg: #10243d;
+    --gold: #9e6b05;
+    --text-main: #0f1f33;
+    --text-muted: #455d78;
+    --text-dim: #6c829c;
+  }
+
+  [data-theme="light"][data-palette="burgundy"] {
+    --bg-deep: #f3e9ec;
+    --bg-panel: #fdf8f9;
+    --bg-card: #ffffff;
+    --bg-strip: #f7edf0;
+    --th-bg: #efe1e5;
+    --th-active-bg: #f6e5bc;
+    --td-active-bg: #fcf4f6;
+    --section-bg: #ecdae0;
+    --summary-bg: #f5eaed;
+    --grand-bg: #eddce1;
+    --btn-disabled-bg: #e8d8dd;
+    --btn-disabled-fg: #8c6a75;
+    --toast-bg: #2b121b;
+    --gold: #9a6707;
+    --text-main: #291119;
+    --text-muted: #684350;
+    --text-dim: #916a77;
+  }
+
+  [data-theme="light"][data-palette="slate"] {
+    --bg-deep: #e8edf2;
+    --bg-panel: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-strip: #edf1f5;
+    --th-bg: #e2e8f0;
+    --th-active-bg: #ccf2ee;
+    --td-active-bg: #f0fdfa;
+    --section-bg: #dfe6ee;
+    --summary-bg: #eef2f6;
+    --grand-bg: #dde8ec;
+    --btn-disabled-bg: #d7e0e8;
+    --btn-disabled-fg: #6b7d8f;
+    --toast-bg: #14202b;
+    --gold: #0f766e;
+    --gold-dim: rgba(15, 118, 110, 0.14);
+    --accent-grad: linear-gradient(180deg, #2dd4bf 0%, #0d9488 100%);
+    --accent-fg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+  }
+
+  [data-theme="light"] .toast {
+    color: #f8fafc;
   }
 
   * {
@@ -106,8 +317,8 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 10px;
+    gap: 5px;
+    padding: 7px 9px;
     background: var(--bg-panel);
     border-bottom: 1px solid var(--border);
     z-index: 20;
@@ -118,34 +329,56 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 4px;
     height: 34px;
-    min-width: 34px;
-    padding: 0 9px;
+    min-width: 32px;
+    padding: 0 8px;
     border-radius: 9px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--surface-soft);
     border: 1px solid var(--border);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--text-main);
-    transition: background 0.14s, transform 0.08s, border-color 0.14s;
+    transition: background 0.14s, transform 0.08s, border-color 0.14s, opacity 0.14s;
     white-space: nowrap;
+    position: relative;
   }
 
   .hud-btn:active:not(:disabled) {
     transform: scale(0.96);
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--surface-hover);
   }
 
   .hud-btn.active {
     background: var(--gold-dim);
-    border-color: rgba(229, 185, 76, 0.55);
+    border-color: var(--gold);
     color: var(--gold);
   }
 
   .hud-btn.icon-only {
     padding: 0;
-    width: 34px;
+    width: 32px;
+  }
+
+  .hud-btn.toggled-off {
+    opacity: 0.48;
+  }
+  .hud-btn.toggled-off::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 2px;
+    background: var(--red-muted);
+    transform: rotate(-45deg);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+
+  @media (max-width: 420px) {
+    .hud { gap: 4px; padding: 6px 7px; }
+    .brand-title { font-size: 14.5px; gap: 3px; }
+    .sync-pill { max-width: 118px; padding: 0 8px; font-size: 11px; }
+    .undo-label { display: none; }
   }
 
   .brand-title {
@@ -166,7 +399,7 @@
     height: 30px;
     padding: 0 10px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--surface-soft);
     border: 1px solid var(--border);
     font-size: 11.5px;
     font-weight: 600;
@@ -225,7 +458,7 @@
     justify-content: space-between;
     gap: 8px;
     padding: 5px 12px;
-    background: #0d1d16;
+    background: var(--bg-strip);
     border-bottom: 1px solid var(--border);
     font-size: 12.5px;
     min-height: 34px;
@@ -273,7 +506,7 @@
     padding: 2px 5px;
     border-radius: 6px;
   }
-  .turn-player-name:active { background: rgba(255, 255, 255, 0.1); }
+  .turn-player-name:active { background: var(--surface-hover); }
   .edit-pencil {
     font-size: 10px;
     opacity: 0.62;
@@ -287,7 +520,7 @@
   .rename-pill {
     padding: 5px 10px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--surface-soft);
     border: 1px solid var(--border);
     font-size: 12px;
     font-weight: 700;
@@ -329,7 +562,7 @@
     padding: 6px 12px;
     background: linear-gradient(90deg, rgba(229, 185, 76, 0.22), rgba(52, 211, 153, 0.14));
     border-bottom: 1px solid rgba(229, 185, 76, 0.45);
-    color: #fef3c7;
+    color: var(--handoff-fg);
     font-size: 12.5px;
     font-weight: 700;
   }
@@ -347,8 +580,8 @@
     flex: 0 0 auto;
     padding: 5px 11px;
     border-radius: 999px;
-    background: linear-gradient(180deg, #eec65d 0%, #c99728 100%);
-    color: #161004;
+    background: var(--accent-grad);
+    color: var(--accent-fg);
     font-size: 11.5px;
     font-weight: 800;
     white-space: nowrap;
@@ -364,9 +597,9 @@
     justify-content: center;
     gap: 6px;
     padding: 4px 12px;
-    background: rgba(56, 189, 248, 0.12);
-    border-bottom: 1px solid rgba(56, 189, 248, 0.28);
-    color: #bae6fd;
+    background: var(--info-strip-bg);
+    border-bottom: 1px solid var(--info-strip-border);
+    color: var(--info-strip-fg);
     font-size: 11.5px;
     font-weight: 700;
     text-align: center;
@@ -382,7 +615,7 @@
     margin: 2px 4px;
     width: calc(100% - 8px);
     height: 32px;
-    color: #fef08a !important;
+    color: var(--just-scored-fg) !important;
     animation: justScoredPulse 1.4s ease-out forwards;
   }
 
@@ -396,7 +629,7 @@
     padding: 5px 12px;
     background: linear-gradient(90deg, rgba(229, 185, 76, 0.22), rgba(52, 211, 153, 0.18));
     border-bottom: 1px solid rgba(229, 185, 76, 0.4);
-    color: #fde68a;
+    color: var(--joker-fg);
     font-size: 12px;
     font-weight: 700;
     text-align: center;
@@ -465,8 +698,8 @@
     flex: 1 1 auto;
     height: 40px;
     border-radius: 11px;
-    background: linear-gradient(180deg, #eec65d 0%, #c99728 100%);
-    color: #161004;
+    background: var(--accent-grad);
+    color: var(--accent-fg);
     font-size: 14.5px;
     font-weight: 800;
     letter-spacing: 0.02em;
@@ -484,8 +717,8 @@
   }
 
   .roll-btn:disabled {
-    background: #233b31;
-    color: #7d968b;
+    background: var(--btn-disabled-bg);
+    color: var(--btn-disabled-fg);
     box-shadow: none;
   }
 
@@ -509,7 +742,7 @@
     height: 40px;
     padding: 0 12px;
     border-radius: 11px;
-    background: rgba(255,255,255,0.06);
+    background: var(--surface-soft);
     border: 1px solid var(--border);
     font-size: 12px;
     font-weight: 700;
@@ -543,7 +776,7 @@
 
   .score-table th, .score-table td {
     border-bottom: 1px solid var(--border);
-    border-right: 1px solid rgba(255,255,255,0.05);
+    border-right: 1px solid var(--cell-border);
     padding: 0;
     vertical-align: middle;
   }
@@ -552,7 +785,7 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background-color: #0d1f18;
+    background-color: var(--th-bg);
     border-bottom: 1px solid var(--border-strong);
     height: 40px;
     font-size: 12px;
@@ -564,7 +797,7 @@
     position: sticky;
     left: 0;
     z-index: 5;
-    background-color: #10241c;
+    background-color: var(--bg-panel);
     width: 138px;
     min-width: 132px;
     max-width: 160px;
@@ -574,7 +807,7 @@
 
   .score-table thead th.cat-col {
     z-index: 12;
-    background-color: #0d1f18;
+    background-color: var(--th-bg);
   }
 
   /* Focus mode uses wide full-width single player column */
@@ -625,21 +858,21 @@
   }
 
   th.player-col {
-    background-color: #0d1f18;
+    background-color: var(--th-bg);
   }
   th.player-col.is-active {
-    background-color: #25301f;
+    background-color: var(--th-active-bg);
     box-shadow: inset 0 -2px 0 var(--gold);
   }
   th.player-col.is-active .player-th-name { color: var(--gold); }
   th.player-col.is-leader .player-th-sub { color: var(--green-ok); }
 
   td.player-col.is-active {
-    background-color: #152a21;
+    background-color: var(--td-active-bg);
   }
 
   .section-row td {
-    background: #0c1a14 !important;
+    background: var(--section-bg) !important;
     color: var(--gold);
     font-size: 10.5px;
     font-weight: 800;
@@ -673,14 +906,14 @@
   }
 
   .summary-row td {
-    background: #10261d !important;
+    background: var(--summary-bg) !important;
     height: 32px;
     font-size: 12px;
     font-weight: 700;
   }
 
   .summary-row.grand-row td {
-    background: #153428 !important;
+    background: var(--grand-bg) !important;
     height: 38px;
     font-size: 14px;
     font-weight: 800;
@@ -754,8 +987,8 @@
 
   .cell-btn.preview-joker {
     background: linear-gradient(90deg, rgba(229, 185, 76, 0.25), rgba(52, 211, 153, 0.25));
-    color: #fef08a;
-    border: 1px solid rgba(229, 185, 76, 0.65);
+    color: var(--joker-fg);
+    border: 1px solid var(--gold);
     border-radius: 6px;
     margin: 2px 4px;
     width: calc(100% - 8px);
@@ -763,24 +996,24 @@
   }
 
   .cell-btn.manual-open {
-    background: rgba(255, 255, 255, 0.045);
+    background: var(--surface-subtle);
     color: var(--text-muted);
-    border: 1px dashed rgba(255, 255, 255, 0.16);
+    border: 1px dashed var(--border-strong);
     border-radius: 6px;
     margin: 2px 4px;
     width: calc(100% - 8px);
     height: 32px;
     font-size: 12px;
   }
-  .cell-btn.manual-open:active { background: rgba(255, 255, 255, 0.12); }
+  .cell-btn.manual-open:active { background: var(--surface-hover); }
 
   .cell-btn.empty-idle {
-    color: rgba(255, 255, 255, 0.16);
+    color: var(--cell-idle);
     cursor: default;
   }
 
   .cell-btn.joker-locked {
-    color: rgba(255, 255, 255, 0.14);
+    color: var(--cell-idle);
     cursor: not-allowed;
   }
 
@@ -852,7 +1085,7 @@
     justify-content: space-between;
     padding: 13px 16px;
     border-bottom: 1px solid var(--border);
-    background: rgba(0, 0, 0, 0.16);
+    background: var(--modal-chrome);
   }
 
   .modal-title {
@@ -868,7 +1101,7 @@
     width: 30px;
     height: 30px;
     border-radius: 8px;
-    background: rgba(255,255,255,0.07);
+    background: var(--surface-soft);
     color: var(--text-muted);
     font-size: 18px;
     display: inline-flex;
@@ -891,7 +1124,7 @@
     flex: 0 0 auto;
     padding: 11px 16px;
     border-top: 1px solid var(--border);
-    background: rgba(0, 0, 0, 0.14);
+    background: var(--modal-chrome);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -909,16 +1142,16 @@
     border-radius: 10px;
     font-size: 13.5px;
     font-weight: 700;
-    background: rgba(255,255,255,0.08);
+    background: var(--surface-soft);
     border: 1px solid var(--border-strong);
     color: var(--text-main);
     transition: background 0.12s, transform 0.08s;
   }
   .btn:active:not(:disabled) { transform: scale(0.98); }
   .btn.primary {
-    background: linear-gradient(180deg, #eec65d 0%, #c99728 100%);
+    background: var(--accent-grad);
     border-color: transparent;
-    color: #161004;
+    color: var(--accent-fg);
   }
   .btn.emerald {
     background: rgba(52, 211, 153, 0.18);
@@ -945,7 +1178,7 @@
 
   .text-input, .text-area {
     width: 100%;
-    background: rgba(0,0,0,0.28);
+    background: var(--surface-inset);
     border: 1px solid var(--border-strong);
     border-radius: 9px;
     color: var(--text-main);
@@ -965,7 +1198,7 @@
 
   .seg-group {
     display: flex;
-    background: rgba(0,0,0,0.26);
+    background: var(--surface-inset);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 3px;
@@ -994,7 +1227,7 @@
   .count-pill {
     height: 38px;
     border-radius: 9px;
-    background: rgba(255,255,255,0.06);
+    background: var(--surface-soft);
     border: 1px solid var(--border);
     font-weight: 800;
     font-size: 14px;
@@ -1002,7 +1235,7 @@
   }
   .count-pill.active {
     background: var(--gold);
-    color: #161004;
+    color: var(--accent-fg);
     border-color: var(--gold);
   }
 
@@ -1024,11 +1257,11 @@
     justify-content: space-between;
     padding: 11px 13px;
     border-radius: 11px;
-    background: rgba(255,255,255,0.045);
+    background: var(--surface-subtle);
     border: 1px solid var(--border);
     text-align: left;
   }
-  .menu-item:active { background: rgba(255,255,255,0.1); }
+  .menu-item:active:not(:disabled) { background: var(--surface-hover); }
   .menu-item-left {
     display: flex;
     align-items: center;
@@ -1042,7 +1275,7 @@
     text-align: center;
     padding: 12px;
     border-radius: 12px;
-    background: rgba(0,0,0,0.28);
+    background: var(--surface-inset);
     border: 1px solid var(--border-strong);
   }
   .room-code-big {
@@ -1075,12 +1308,12 @@
   }
 
   .checklist-box {
-    background: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.28);
+    background: var(--info-strip-bg);
+    border: 1px solid var(--info-strip-border);
     border-radius: 11px;
     padding: 10px 12px;
     font-size: 12.5px;
-    color: #dbeafe;
+    color: var(--info-strip-fg);
   }
   .checklist-box ol {
     margin: 5px 0 0 18px;
@@ -1123,7 +1356,7 @@
   .picker-opt {
     height: 44px;
     border-radius: 10px;
-    background: rgba(255,255,255,0.07);
+    background: var(--surface-soft);
     border: 1px solid var(--border-strong);
     font-size: 16px;
     font-weight: 800;
@@ -1152,7 +1385,7 @@
     justify-content: space-between;
     padding: 10px 12px;
     border-radius: 11px;
-    background: rgba(255,255,255,0.05);
+    background: var(--surface-subtle);
     border: 1px solid var(--border);
   }
   .podium-row.rank-1 {
@@ -1168,14 +1401,14 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.08);
+    background: var(--surface-soft);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 900;
     font-size: 13px;
   }
-  .podium-row.rank-1 .podium-medal { background: var(--gold); color: #161004; }
+  .podium-row.rank-1 .podium-medal { background: var(--gold); color: var(--accent-fg); }
   .podium-badges {
     display: flex;
     gap: 5px;
@@ -1204,8 +1437,8 @@
     left: 50%;
     bottom: 18px;
     transform: translateX(-50%) translateY(20px);
-    background: #0c1f17;
-    border: 1px solid rgba(229, 185, 76, 0.5);
+    background: var(--toast-bg);
+    border: 1px solid var(--gold);
     color: var(--text-main);
     padding: 9px 15px;
     border-radius: 999px;
@@ -1236,6 +1469,50 @@
   }
   .row-gap > * { flex: 1 1 0; }
 
+  /* Appearance Swatch Pickers */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .swatch-card {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+    border-radius: 11px;
+    background: var(--surface-subtle);
+    border: 1.5px solid var(--border);
+    text-align: left;
+    transition: border-color 0.14s, background 0.14s;
+  }
+  .swatch-card.active {
+    border-color: var(--gold);
+    background: var(--gold-dim);
+  }
+  .swatch-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.25);
+  }
+  .swatch-name {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+  }
+  .swatch-sub {
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -1250,9 +1527,10 @@
       <span id="syncPillText">Local</span>
     </button>
     <div class="hud-spacer"></div>
-    <button id="btnUndo" class="hud-btn" title="Undo last score (Ctrl+Z)" disabled>↩ Undo</button>
+    <button id="btnUndo" class="hud-btn" title="Undo last score (Ctrl+Z)" disabled>↩<span class="undo-label"> Undo</span></button>
     <button id="btnViewToggle" class="hud-btn" title="Toggle My Card / All Players (Tab)">All</button>
-    <button id="btnMute" class="hud-btn icon-only" aria-label="Toggle Sound & Haptics" title="Sound & Haptics">🔊</button>
+    <button id="btnMute" class="hud-btn icon-only" aria-label="Toggle Sound Effects" title="Sound Effects">🔊</button>
+    <button id="btnHaptics" class="hud-btn icon-only" aria-label="Toggle Mobile Haptics" title="Mobile Haptics">📳</button>
   </header>
 
   <!-- Active Turn Strip -->
@@ -1319,32 +1597,20 @@
     <div class="modal-body">
       <div class="menu-list">
         <button id="menuNewGame" class="menu-item">
-          <div class="menu-item-left"><span>✨</span><div><div class="menu-item-title">New Game / Players</div><div class="menu-item-sub">1–6 players, custom names &amp; mode</div></div></div>
+          <div class="menu-item-left"><span>✨</span><div><div class="menu-item-title">New Game</div><div class="menu-item-sub">Solo, Pass &amp; Play, vs. Bot, or Online Room</div></div></div>
           <span>›</span>
         </button>
         <button id="menuModeSwitch" class="menu-item">
-          <div class="menu-item-left"><span>📋</span><div><div class="menu-item-title" id="menuModeTitle">Switch to Digital Scorecard</div><div class="menu-item-sub" id="menuModeSub">Use real physical dice with live synced scores</div></div></div>
+          <div class="menu-item-left"><span>📋</span><div><div class="menu-item-title" id="menuModeTitle">Scorecard Only (Real Dice)</div><div class="menu-item-sub" id="menuModeSub">Hide 3D dice — score your own physical dice</div></div></div>
           <span>›</span>
         </button>
-        <button id="menuLink" class="menu-item">
-          <div class="menu-item-left"><span>🔗</span><div><div class="menu-item-title">Link / Invite Devices</div><div class="menu-item-sub">Online room via 4-char Code, Share Link or QR</div></div></div>
+        <button id="menuSeat" class="menu-item hidden">
+          <div class="menu-item-left"><span>👤</span><div><div class="menu-item-title">Change My Seat</div><div class="menu-item-sub" id="menuSeatSub">Switch to an empty seat or spectate</div></div></div>
           <span>›</span>
         </button>
-        <button id="menuSeat" class="menu-item">
-          <div class="menu-item-left"><span>👤</span><div><div class="menu-item-title">Change My Seat</div><div class="menu-item-sub" id="menuSeatSub">Claim a player or watch as spectator</div></div></div>
+        <button id="menuSettings" class="menu-item">
+          <div class="menu-item-left"><span>🎨</span><div><div class="menu-item-title">Appearance</div><div class="menu-item-sub" id="menuSettingsSub">Dark mode · Emerald &amp; Gold · Ivory dice</div></div></div>
           <span>›</span>
-        </button>
-        <button id="menuRename" class="menu-item">
-          <div class="menu-item-left"><span>✏️</span><div><div class="menu-item-title">Edit Player Names</div><div class="menu-item-sub">Update your name or any player's name anytime</div></div></div>
-          <span>›</span>
-        </button>
-        <button id="menuAudioToggle" class="menu-item">
-          <div class="menu-item-left"><span>🔊</span><div><div class="menu-item-title">Sound Effects</div><div class="menu-item-sub" id="menuAudioSub">On</div></div></div>
-          <span id="menuAudioBadge">ON</span>
-        </button>
-        <button id="menuHapticsToggle" class="menu-item">
-          <div class="menu-item-left"><span>📳</span><div><div class="menu-item-title">Mobile Haptics</div><div class="menu-item-sub" id="menuHapticsSub">On</div></div></div>
-          <span id="menuHapticsBadge">ON</span>
         </button>
         <button id="menuInstall" class="menu-item">
           <div class="menu-item-left"><span>📲</span><div><div class="menu-item-title" id="menuInstallTitle">Install App</div><div class="menu-item-sub" id="menuInstallSub">Play full-screen &amp; offline on home screen</div></div></div>
@@ -1353,13 +1619,13 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.3.0 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.4.0 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
 </div>
 
-<!-- 1-Step New Game / Players Setup Modal -->
+<!-- Unified Seamless New Game & Online Room Modal -->
 <div id="modalSetup" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="New Game">
   <div class="modal-card">
     <div class="modal-head">
@@ -1367,106 +1633,129 @@
       <button class="modal-close" data-close="modalSetup" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <div>
-        <span class="field-label">Play Mode</span>
-        <div class="seg-group">
-          <button id="setupMode3d" class="seg-btn active">🎲 3D Yachti</button>
-          <button id="setupModeCard" class="seg-btn">📋 Digital Scorecard</button>
-        </div>
+      <div id="setupModeTabsBar" class="seg-group">
+        <button id="setupTabLocal" class="seg-btn active">🎮 This Device</button>
+        <button id="setupTabOnline" class="seg-btn">🌐 Online Room</button>
       </div>
-      <div id="setupOpponentWrap">
-        <span class="field-label">Opponent</span>
-        <div class="seg-group">
-          <button id="setupOppHuman" class="seg-btn active">👥 Pass &amp; Play (1–6)</button>
-          <button id="setupOppAi" class="seg-btn">🤖 vs Computer (2P)</button>
-        </div>
-      </div>
-      <div id="setupAiLevelWrap" class="hidden">
-        <span class="field-label">Computer Skill</span>
-        <div class="seg-group">
-          <button id="setupAiCasual" class="seg-btn">🙂 Casual</button>
-          <button id="setupAiPro" class="seg-btn active">🧠 Pro</button>
-        </div>
-      </div>
-      <div id="setupCountWrap">
-        <span class="field-label">Players (1–6)</span>
-        <div id="setupCountPills" class="count-pills"></div>
-      </div>
-      <div>
-        <span class="field-label">Player Names (Editable anytime)</span>
-        <div id="setupNameInputs" class="player-inputs-grid"></div>
-      </div>
-      <div class="muted-note">Works 100% offline for flights &amp; Pass-and-Play, or tap <b>Link Devices</b> when online to sync across multiple phones.</div>
-    </div>
-    <div class="modal-foot">
-      <button id="btnSetupJoinRoom" class="btn sm">Join Room</button>
-      <button id="btnSetupStart" class="btn primary">Start Game</button>
-    </div>
-  </div>
-</div>
 
-<!-- Link / Invite Devices Modal -->
-<div id="modalLink" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Link Devices">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div class="modal-title">🔗 Link Devices</div>
-      <button class="modal-close" data-close="modalLink" aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <!-- Built-in Camera QR Scanner (Placed at top so viewfinder is always in view) -->
+      <!-- Built-in Camera QR Scanner (Top-docked inside New Game modal) -->
       <div id="qrScannerPanel" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
         <div class="scanner-box">
           <video id="qrVideo" playsinline muted autoplay></video>
           <div class="scanner-reticle"></div>
         </div>
-        <div id="qrScannerMsg" class="muted-note" style="text-align:center;">Point camera at QR code…</div>
+        <div id="qrScannerMsg" class="muted-note" style="text-align:center;">Point camera at Room QR code…</div>
         <button id="btnStopScanner" class="btn danger sm full">Cancel Camera</button>
       </div>
 
-      <!-- Online Room Sync -->
-      <div id="panelOnlineSync" style="display:flex; flex-direction:column; gap:12px;">
-        <div id="onlineNotHosted">
-          <div class="muted-note" style="margin-bottom:10px;">Create a private room to sync 3D rolls, kept dice, and scores across up to 6 phones in real time.</div>
-          <button id="btnCreateRoom" class="btn primary full">Create Live Room</button>
+      <!-- Online Room Section (Create / Invite / Join) -->
+      <div id="setupOnlineSection" class="hidden" style="display:flex; flex-direction:column; gap:11px;">
+        <div id="onlineNotHosted" style="display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <div class="muted-note" style="margin-bottom:8px;">Host a private room to sync 3D rolls, kept dice, and scores live across up to 6 phones.</div>
+            <button id="btnCreateRoom" class="btn primary full">Create Live Room</button>
+          </div>
+          <hr style="border:none; border-top:1px solid var(--border); width:100%; margin:2px 0;">
+          <div>
+            <span class="field-label">Or Join Someone Else's Room</span>
+            <div class="row-gap">
+              <input id="inputJoinCode" class="text-input" placeholder="4-char code or paste link" autocomplete="off" autocapitalize="characters">
+              <button id="btnJoinRoom" class="btn primary" style="flex:0 0 auto;">Join</button>
+            </div>
+            <div id="joinStatusText" class="muted-note hidden" style="margin-top:6px; text-align:center;"></div>
+            <div style="margin-top:7px;">
+              <button id="btnScanOnlineQr" class="btn sm full">📷 Scan Room QR Code</button>
+            </div>
+          </div>
         </div>
 
-        <div id="onlineHosted" class="hidden" style="display:flex; flex-direction:column; gap:10px;">
+        <div id="onlineHosted" class="hidden" style="display:flex; flex-direction:column; gap:9px;">
           <div class="room-code-box">
-            <div class="field-label" style="margin-bottom:2px;">4-Character Room Code</div>
+            <div class="field-label" style="margin-bottom:2px;">Live Room Code</div>
             <div id="displayRoomCode" class="room-code-big">----</div>
             <div id="displayPeerSummary" class="muted-note">Connecting to sync relay…</div>
           </div>
-          <div class="qr-wrap">
+          <div id="roomQrWrap" class="qr-wrap">
             <canvas id="roomQrCanvas" width="240" height="240"></canvas>
           </div>
           <div class="row-gap">
-            <button id="btnShareLink" class="btn emerald">📤 Share Link</button>
-            <button id="btnCopyLink" class="btn">📋 Copy Link</button>
+            <button id="btnShareLink" class="btn emerald sm">📤 Share</button>
+            <button id="btnCopyLink" class="btn sm">📋 Copy</button>
+            <button id="btnToggleQr" class="btn sm">Hide QR</button>
           </div>
-          <div class="row-gap">
-            <button id="btnRoomNewGame" class="btn primary sm">✨ New Game / Players</button>
-            <button id="btnLeaveRoom" class="btn danger sm">Disconnect</button>
-          </div>
-        </div>
-
-        <hr style="border:none; border-top:1px solid var(--border); width:100%; margin:2px 0;">
-
-        <div>
-          <span class="field-label">Join Someone Else's Room</span>
-          <div class="row-gap">
-            <input id="inputJoinCode" class="text-input" placeholder="4-char code or paste link" autocomplete="off" autocapitalize="characters">
-            <button id="btnJoinRoom" class="btn primary" style="flex:0 0 auto;">Join</button>
-          </div>
-          <div id="joinStatusText" class="muted-note hidden" style="margin-top:6px; text-align:center;"></div>
-          <div style="margin-top:7px;">
-            <button id="btnScanOnlineQr" class="btn sm full">📷 Scan Room QR Code</button>
-          </div>
-        </div>
-
-        <div class="muted-note" style="text-align:center; padding-top:2px;">
-          Offline or on a flight? Play <b>Pass-and-Play</b> or <b>vs. Computer</b> on one device.
+          <button id="btnLeaveRoom" class="btn danger sm full">Disconnect Room</button>
+          <hr style="border:none; border-top:1px solid var(--border); width:100%; margin:2px 0;">
         </div>
       </div>
+
+      <!-- Shared Game Configuration (Shown on This Device tab, AND inline below Room Card once Online Room is live!) -->
+      <div id="setupGameConfig" style="display:flex; flex-direction:column; gap:11px;">
+        <div>
+          <span class="field-label">Play Mode</span>
+          <div class="seg-group">
+            <button id="setupMode3d" class="seg-btn active">🎲 3D Dice</button>
+            <button id="setupModeCard" class="seg-btn">📋 Scorecard Only</button>
+          </div>
+        </div>
+        <div id="setupOpponentWrap">
+          <span class="field-label">Opponent</span>
+          <div class="seg-group">
+            <button id="setupOppHuman" class="seg-btn active">👥 Pass &amp; Play (1–6)</button>
+            <button id="setupOppAi" class="seg-btn">🤖 vs Computer (2P)</button>
+          </div>
+        </div>
+        <div id="setupAiLevelWrap" class="hidden">
+          <span class="field-label">Computer Skill</span>
+          <div class="seg-group">
+            <button id="setupAiCasual" class="seg-btn">🙂 Casual</button>
+            <button id="setupAiPro" class="seg-btn active">🧠 Pro</button>
+          </div>
+        </div>
+        <div id="setupCountWrap">
+          <span class="field-label">Players (1–6)</span>
+          <div id="setupCountPills" class="count-pills"></div>
+        </div>
+        <div>
+          <span class="field-label">Player Names (Editable anytime)</span>
+          <div id="setupNameInputs" class="player-inputs-grid"></div>
+        </div>
+        <div id="setupOfflineHint" class="muted-note">Works 100% offline for flights &amp; Pass-and-Play, or switch to <b>Online Room</b> above to link phones.</div>
+      </div>
+    </div>
+    <div id="setupModalFoot" class="modal-foot">
+      <button class="btn sm" data-close="modalSetup">Cancel</button>
+      <button id="btnSetupStart" class="btn primary">Start Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- Appearance / Settings Modal -->
+<div id="modalSettings" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Appearance Settings">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">🎨 Appearance</div>
+      <button class="modal-close" data-close="modalSettings" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <span class="field-label">Theme Mode</span>
+        <div class="seg-group">
+          <button id="prefThemeDark" class="seg-btn active">🌙 Dark</button>
+          <button id="prefThemeLight" class="seg-btn">☀️ Light</button>
+        </div>
+      </div>
+      <div>
+        <span class="field-label">Table &amp; Colour Palette</span>
+        <div id="prefPaletteGrid" class="swatch-grid"></div>
+      </div>
+      <div>
+        <span class="field-label">3D Dice Style</span>
+        <div id="prefDiceGrid" class="swatch-grid"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnResetAppearance" class="btn sm">Reset Defaults</button>
+      <button class="btn primary sm" data-close="modalSettings">Done</button>
     </div>
   </div>
 </div>
@@ -1562,7 +1851,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.4.0';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const SESSION_ROOM_KEY = 'yachti_v1_room_session';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
@@ -1892,12 +2181,117 @@
   /* ============================================================================
    * MODULE 2: ZERO-ASSET WEB AUDIO API SYNTHESIZER & MOBILE HAPTICS
    * ============================================================================ */
+  const APPEARANCE_PALETTES = {
+    emerald: {
+      label: 'Emerald & Gold',
+      sub: 'Classic felt',
+      swatch: '#144934',
+      themeDark: '#0f221b',
+      themeLight: '#e4ede7',
+      felt: ['#18543c', '#103c2a', '#0b2b1e'],
+      reserveBg: '#0b2118',
+      reserveDrag: '#153829',
+      divider: '#4d301b',
+      accent: '#e5b94c',
+      labelCol: '#9ab3a8'
+    },
+    navy: {
+      label: 'Royal Navy',
+      sub: 'Deep maritime',
+      swatch: '#16355c',
+      themeDark: '#0e1c30',
+      themeLight: '#e1ebf5',
+      felt: ['#1b4474', '#123054', '#0b1e38'],
+      reserveBg: '#0b192d',
+      reserveDrag: '#163154',
+      divider: '#4b392b',
+      accent: '#f0c35b',
+      labelCol: '#9db4d0'
+    },
+    burgundy: {
+      label: 'Burgundy Velvet',
+      sub: 'Rich claret',
+      swatch: '#5e1a32',
+      themeDark: '#251018',
+      themeLight: '#efe1e5',
+      felt: ['#6c203b', '#4d152a', '#340d1c'],
+      reserveBg: '#240c15',
+      reserveDrag: '#461829',
+      divider: '#5e3422',
+      accent: '#efc462',
+      labelCol: '#c2a0ac'
+    },
+    slate: {
+      label: 'Slate & Mint',
+      sub: 'Modern minimal',
+      swatch: '#233644',
+      themeDark: '#161d24',
+      themeLight: '#e2e8f0',
+      felt: ['#2a3f4f', '#1d2d3a', '#131e28'],
+      reserveBg: '#121b23',
+      reserveDrag: '#1f333f',
+      divider: '#3a4652',
+      accent: '#4fd1c5',
+      labelCol: '#9fb0c2'
+    }
+  };
+
+  const DICE_STYLES = {
+    ivory: {
+      label: 'Classic Ivory',
+      sub: 'Warm ivory',
+      swatch: '#f6f0df',
+      pipPreview: '#132820',
+      base: [252, 247, 235],
+      held: [255, 246, 214],
+      stroke: 'rgba(130, 118, 96, 0.45)',
+      pip: '#132820',
+      centerPip: '#b98216'
+    },
+    obsidian: {
+      label: 'Obsidian',
+      sub: 'Matte charcoal',
+      swatch: '#262b31',
+      pipPreview: '#f8fafc',
+      base: [46, 52, 60],
+      held: [62, 66, 74],
+      stroke: 'rgba(255, 255, 255, 0.22)',
+      pip: '#f8fafc',
+      centerPip: '#f0c35b'
+    },
+    ruby: {
+      label: 'Ruby Red',
+      sub: 'Casino crimson',
+      swatch: '#a61c32',
+      pipPreview: '#fff7ed',
+      base: [188, 34, 58],
+      held: [210, 48, 72],
+      stroke: 'rgba(255, 220, 220, 0.28)',
+      pip: '#fff7ed',
+      centerPip: '#fde047'
+    },
+    cobalt: {
+      label: 'Ocean Blue',
+      sub: 'Deep sapphire',
+      swatch: '#1d4ed8',
+      pipPreview: '#f8fafc',
+      base: [38, 96, 214],
+      held: [56, 118, 235],
+      stroke: 'rgba(219, 234, 254, 0.30)',
+      pip: '#f8fafc',
+      centerPip: '#fde047'
+    }
+  };
+
   const Prefs = (() => {
-    let data = { sound: true, haptics: true };
+    let data = { sound: true, haptics: true, themeMode: 'dark', palette: 'emerald', diceStyle: 'ivory' };
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_PREFS_KEY) || '{}');
       if (typeof saved.sound === 'boolean') data.sound = saved.sound;
       if (typeof saved.haptics === 'boolean') data.haptics = saved.haptics;
+      if (saved.themeMode === 'light' || saved.themeMode === 'dark') data.themeMode = saved.themeMode;
+      if (APPEARANCE_PALETTES[saved.palette]) data.palette = saved.palette;
+      if (DICE_STYLES[saved.diceStyle]) data.diceStyle = saved.diceStyle;
     } catch (_) {}
     function save() {
       try { localStorage.setItem(STORAGE_PREFS_KEY, JSON.stringify(data)); } catch (_) {}
@@ -1907,7 +2301,13 @@
       set sound(v) { data.sound = !!v; save(); },
       get haptics() { return data.haptics; },
       set haptics(v) { data.haptics = !!v; save(); },
-      get muted() { return !data.sound && !data.haptics; }
+      get themeMode() { return data.themeMode; },
+      set themeMode(v) { data.themeMode = v === 'light' ? 'light' : 'dark'; save(); },
+      get palette() { return data.palette; },
+      set palette(v) { if (APPEARANCE_PALETTES[v]) { data.palette = v; save(); } },
+      get diceStyle() { return data.diceStyle; },
+      set diceStyle(v) { if (DICE_STYLES[v]) { data.diceStyle = v; save(); } },
+      resetAppearance() { data.themeMode = 'dark'; data.palette = 'emerald'; data.diceStyle = 'ivory'; save(); }
     };
   })();
 
@@ -3185,10 +3585,13 @@
           return project3D(cx, cy, cz, r3[0], r3[1], r3[2], half);
         });
 
-        // Ivory color shaded by face lighting (subtle golden tint when held)
-        const rCol = Math.min(255, Math.round((d.held ? 255 : 252) * light));
-        const gCol = Math.min(255, Math.round((d.held ? 246 : 247) * light));
-        const bCol = Math.min(255, Math.round((d.held ? 216 : 235) * light));
+        // Theme-aware 3D die body shaded by face lighting
+        const ds = DICE_STYLES[Prefs.diceStyle] || DICE_STYLES.ivory;
+        const pal = APPEARANCE_PALETTES[Prefs.palette] || APPEARANCE_PALETTES.emerald;
+        const rgb = d.held ? ds.held : ds.base;
+        const rCol = Math.min(255, Math.round(rgb[0] * light));
+        const gCol = Math.min(255, Math.round(rgb[1] * light));
+        const bCol = Math.min(255, Math.round(rgb[2] * light));
 
         // Draw face polygon with slight rounded corners via quadratic curves
         ctx.beginPath();
@@ -3206,8 +3609,8 @@
         ctx.closePath();
         ctx.fillStyle = `rgb(${rCol},${gCol},${bCol})`;
         ctx.fill();
-        ctx.lineWidth = isHeldHighlight ? 1.8 : 1.1;
-        ctx.strokeStyle = isHeldHighlight ? 'rgba(229, 185, 76, 0.92)' : 'rgba(130, 118, 96, 0.45)';
+        ctx.lineWidth = isHeldHighlight ? 1.9 : 1.1;
+        ctx.strokeStyle = isHeldHighlight ? pal.accent : ds.stroke;
         ctx.stroke();
 
         // Draw recessed 3D-projected pips on this face
@@ -3222,8 +3625,6 @@
           const scr = project3D(cx, cy, cz, rp[0], rp[1], rp[2], half);
 
           // Foreshorten pip ellipse according to face tilt
-          const ux = ru[0], uy = ru[1];
-          const vx = rv[0], vy = rv[1];
           const major = pipBaseR * scr.scale;
           const minor = Math.max(1.2, major * Math.abs(rn[2]));
           const tiltAngle = Math.atan2(rn[1], rn[0]) + Math.PI * 0.5;
@@ -3234,7 +3635,7 @@
           ctx.rotate(tiltAngle);
           ctx.beginPath();
           ctx.ellipse(0, 0, major, minor, 0, 0, Math.PI * 2);
-          ctx.fillStyle = isCenterGold ? '#b98216' : '#132820';
+          ctx.fillStyle = isCenterGold ? ds.centerPip : ds.pip;
           ctx.fill();
           ctx.restore();
         }
@@ -3242,14 +3643,15 @@
     }
 
     function drawTrayBackground() {
-      // Emerald felt rolling arena
+      const pal = APPEARANCE_PALETTES[Prefs.palette] || APPEARANCE_PALETTES.emerald;
+      // Theme-aware felt rolling arena
       const grad = ctx.createRadialGradient(
         metrics.arenaW * 0.48, height * 0.48, 12,
         metrics.arenaW * 0.5, height * 0.5, Math.max(metrics.arenaW, height) * 0.72
       );
-      grad.addColorStop(0, '#18543c');
-      grad.addColorStop(0.75, '#103c2a');
-      grad.addColorStop(1, '#0b2b1e');
+      grad.addColorStop(0, pal.felt[0]);
+      grad.addColorStop(0.75, pal.felt[1]);
+      grad.addColorStop(1, pal.felt[2]);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, metrics.arenaW, height);
 
@@ -3262,15 +3664,15 @@
       const draggingIntoReserve = dragState && dragState.moved && !dice[dragState.dieIdx].held && dragState.currX >= metrics.barX - 12;
       const draggingOutOfReserve = dragState && dragState.moved && dice[dragState.dieIdx].held && dragState.currX < metrics.barX;
 
-      ctx.fillStyle = draggingIntoReserve ? '#153829' : '#0b2118';
+      ctx.fillStyle = draggingIntoReserve ? pal.reserveDrag : pal.reserveBg;
       ctx.fillRect(metrics.barX, 0, metrics.barW, height);
 
-      // Divider walnut strip
-      ctx.fillStyle = draggingIntoReserve ? '#e5b94c' : '#4d301b';
+      // Divider strip
+      ctx.fillStyle = draggingIntoReserve ? pal.accent : pal.divider;
       ctx.fillRect(metrics.barX - 2, 0, 4, height);
 
       // Reserve Bar header label
-      ctx.fillStyle = draggingIntoReserve ? '#fde68a' : '#9ab3a8';
+      ctx.fillStyle = draggingIntoReserve ? pal.accent : pal.labelCol;
       ctx.font = '800 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -3283,12 +3685,12 @@
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(s.x - slotS/2, s.y - slotS/2, slotS, slotS, 8);
-        ctx.fillStyle = dice[i].held ? 'rgba(229, 185, 76, 0.12)' : 'rgba(0, 0, 0, 0.24)';
+        ctx.fillStyle = dice[i].held ? 'rgba(255, 255, 255, 0.11)' : 'rgba(0, 0, 0, 0.24)';
         ctx.fill();
         ctx.lineWidth = 1;
         ctx.strokeStyle = dice[i].held
-          ? 'rgba(229, 185, 76, 0.45)'
-          : (draggingIntoReserve ? 'rgba(229, 185, 76, 0.35)' : 'rgba(255, 255, 255, 0.1)');
+          ? pal.accent
+          : (draggingIntoReserve ? pal.accent : 'rgba(255, 255, 255, 0.12)');
         if (!dice[i].held) ctx.setLineDash([3, 3]);
         ctx.stroke();
         ctx.restore();
@@ -4693,6 +5095,8 @@
   let scoreReviewActive = false;
   let scoreReviewTimer = null;
   let passHandoffActive = false;
+  let activeSetupTab = 'local'; // 'local' | 'online'
+  let roomQrCollapsed = false;
 
   function clearScoreReviewPause() {
     if (scoreReviewTimer) { clearTimeout(scoreReviewTimer); scoreReviewTimer = null; }
@@ -4801,7 +5205,7 @@
 
   function closeModal(id) {
     $(id).classList.remove('open');
-    if (id === 'modalLink') {
+    if (id === 'modalSetup') {
       stopQrScanner();
     }
   }
@@ -5063,7 +5467,7 @@
     } else {
       scheduleAiTurnIfNeeded();
       if (wasInitialJoin && getMyClaimedPlayerIndices().length === 0) {
-        closeModal('modalLink');
+        closeModal('modalSetup');
         openSeatPicker();
         showToast(`Synced Room ${state.roomId}! Pick your seat`);
       } else if ($('modalSeat').classList.contains('open')) {
@@ -5541,18 +5945,18 @@
       viewBtn.classList.toggle('active', !focus);
     }
 
-    // Mute icon
-    $('btnMute').textContent = Prefs.muted ? '🔇' : (Prefs.sound ? '🔊' : '📳');
-    $('menuAudioSub').textContent = Prefs.sound ? 'On (synthesized dice & chimes)' : 'Off';
-    $('menuAudioBadge').textContent = Prefs.sound ? 'ON' : 'OFF';
-    $('menuHapticsSub').textContent = Prefs.haptics ? 'On (subtle mobile vibration)' : 'Off';
-    $('menuHapticsBadge').textContent = Prefs.haptics ? 'ON' : 'OFF';
+    // Independent Sound & Mobile Haptics HUD icons
+    $('btnMute').textContent = Prefs.sound ? '🔊' : '🔇';
+    $('btnMute').classList.toggle('toggled-off', !Prefs.sound);
+    $('btnMute').title = Prefs.sound ? 'Sound Effects: On (tap to mute)' : 'Sound Effects: Off (tap to enable)';
+    $('btnHaptics').classList.toggle('toggled-off', !Prefs.haptics);
+    $('btnHaptics').title = Prefs.haptics ? 'Mobile Haptics: On (tap to turn off)' : 'Mobile Haptics: Off (tap to enable)';
 
-    // Mode menu text
-    $('menuModeTitle').textContent = isScorecardOnly ? 'Switch to 3D Yachti' : 'Switch to Digital Scorecard';
+    // Scorecard Only / 3D Dice mode menu item
+    $('menuModeTitle').textContent = isScorecardOnly ? 'Switch to 3D Dice Mode' : 'Scorecard Only (Real Dice)';
     $('menuModeSub').textContent = isScorecardOnly
       ? 'Play with top-down 3D dice & Reserve Bar'
-      : 'Use real physical dice with live synced scores';
+      : 'Hide 3D dice — score your own physical dice';
 
     // Turn strip
     const badge = $('turnBadge');
@@ -5888,12 +6292,22 @@
     openModal('modalQuickPick');
   }
 
-  // ---- 1-Step New Game Setup Modal ----
-  function openSetupModal() {
+  // ---- Unified Seamless New Game & Online Room Modal ----
+  function openSetupModal(preferredTab = null) {
+    stopQrScanner();
+    $('joinStatusText').classList.add('hidden');
     setupEditedIndices = new Set();
+    const inRoom = !!(state && state.roomId !== 'LOCAL');
+    activeSetupTab = preferredTab || (inRoom ? 'online' : 'local');
+    if (inRoom) {
+      const st = SyncEngine.getStatus();
+      roomQrCollapsed = st.deviceCount > 1;
+    } else {
+      roomQrCollapsed = false;
+    }
+
     if (state) {
       setupDraft.mode = state.mode;
-      const inRoom = state.roomId !== 'LOCAL';
       const aiP = state.players.find(p => p.isAI);
       setupDraft.vsComputer = !inRoom && !!(aiP && state.mode === '3d' && state.players.length === 2);
       if (aiP) {
@@ -5906,7 +6320,17 @@
       });
     }
     renderSetupModal();
+    updateSyncModalUI();
     openModal('modalSetup');
+  }
+
+  function switchSetupTab(tab) {
+    activeSetupTab = tab === 'online' ? 'online' : 'local';
+    if (activeSetupTab === 'online' && state && state.roomId !== 'LOCAL') {
+      setupDraft.count = Math.max(2, setupDraft.count);
+    }
+    renderSetupModal();
+    updateSyncModalUI();
   }
 
   function syncOpenSetupModalFromState() {
@@ -5928,27 +6352,43 @@
 
   function renderSetupModal() {
     const inRoom = !!(state && state.roomId !== 'LOCAL');
+    const isOnlineTab = activeSetupTab === 'online';
+    const scanning = !$('qrScannerPanel').classList.contains('hidden');
+
+    $('setupTabLocal').classList.toggle('active', !isOnlineTab);
+    $('setupTabOnline').classList.toggle('active', isOnlineTab);
+    $('setupTabOnline').textContent = inRoom ? `🌐 Room ${state.roomId}` : '🌐 Online Room';
+
+    const showGameConfig = !scanning && (!isOnlineTab || inRoom);
+    $('setupOnlineSection').classList.toggle('hidden', scanning || !isOnlineTab);
+    $('setupGameConfig').classList.toggle('hidden', !showGameConfig);
+    $('setupModalFoot').classList.toggle('hidden', !showGameConfig);
+
     const is3d = setupDraft.mode === '3d';
-    if (!is3d || inRoom) setupDraft.vsComputer = false;
+    if (!is3d || isOnlineTab) setupDraft.vsComputer = false;
     const isAi = is3d && setupDraft.vsComputer;
+    if (isOnlineTab && inRoom && setupDraft.count < 2) setupDraft.count = 2;
 
     $('setupMode3d').classList.toggle('active', is3d);
     $('setupModeCard').classList.toggle('active', !is3d);
-    $('setupOpponentWrap').classList.toggle('hidden', !is3d || inRoom);
+    $('setupOpponentWrap').classList.toggle('hidden', !is3d || isOnlineTab);
     $('setupOppHuman').classList.toggle('active', !isAi);
     $('setupOppAi').classList.toggle('active', isAi);
     $('setupAiLevelWrap').classList.toggle('hidden', !isAi);
     $('setupAiCasual').classList.toggle('active', setupDraft.aiLevel === 'casual');
     $('setupAiPro').classList.toggle('active', setupDraft.aiLevel !== 'casual');
     $('setupCountWrap').classList.toggle('hidden', isAi);
-    $('btnSetupJoinRoom').textContent = inRoom ? `🔗 Room ${state.roomId}` : 'Join Room';
+    $('setupOfflineHint').classList.toggle('hidden', isOnlineTab);
+    $('btnSetupStart').textContent = (isOnlineTab && inRoom) ? 'Start Room Game' : 'Start Game';
 
     const pills = $('setupCountPills');
     pills.innerHTML = '';
+    const minP = (isOnlineTab && inRoom) ? 2 : 1;
     for (let n = 1; n <= MAX_PLAYERS; n++) {
       const b = document.createElement('button');
       b.className = `count-pill ${setupDraft.count === n ? 'active' : ''}`;
       b.textContent = String(n);
+      b.disabled = n < minP;
       b.onclick = () => { setupDraft.count = n; renderSetupModal(); };
       pills.appendChild(b);
     }
@@ -5979,7 +6419,7 @@
         inp.maxLength = 18;
         inp.dataset.setupIdx = String(i);
         inp.value = setupDraft.names[i] || `Player ${i + 1}`;
-        inp.placeholder = (i === 0 && inRoom) ? 'Player 1 (You · Host)' : `Player ${i + 1}`;
+        inp.placeholder = (i === 0 && isOnlineTab && inRoom) ? 'Player 1 (You · Host)' : `Player ${i + 1}`;
         inp.oninput = (e) => { setupEditedIndices.add(i); setupDraft.names[i] = e.target.value; };
         grid.appendChild(inp);
       }
@@ -5990,7 +6430,17 @@
     clearScoreReviewPause();
     cancelAiTurn();
     hostAwaitingPeerForNewGame = false;
-    const keepRoom = state && state.roomId !== 'LOCAL';
+
+    const wasInRoom = !!(state && state.roomId !== 'LOCAL');
+    const keepRoom = wasInRoom && activeSetupTab === 'online';
+
+    // If user switched to "This Device" while in a room and pressed Start Game, cleanly disconnect the room first
+    if (wasInRoom && !keepRoom) {
+      const humanCount = state.players.filter(p => !p.isAI).length;
+      SyncEngine.disconnect({ announceLeave: true, clearRetained: humanCount <= 2 });
+      history.replaceState(null, '', location.pathname);
+    }
+
     const isAi = !keepRoom && setupDraft.mode === '3d' && setupDraft.vsComputer;
     const names = [];
     if (isAi) {
@@ -6035,7 +6485,6 @@
       if (state.players[0] && !state.players[0].isAI) {
         state.players[0].claimedByDeviceId = MY_DEVICE_ID;
       }
-      // If a remote device was previously in seat 0, place them into the first open seat >= 1
       for (const devId of displacedRemoteDevices) {
         const alreadySeated = state.players.some(p => p.claimedByDeviceId === devId);
         if (!alreadySeated) {
@@ -6058,12 +6507,12 @@
     if (isAi) {
       showToast(`Started 2P vs ${names[1]} (${setupDraft.aiLevel === 'casual' ? 'Casual' : 'Pro'})`);
     } else {
-      showToast(`Started ${setupDraft.mode === '3d' ? '3D Yachti' : 'Digital Scorecard'} (${names.length}P)`);
+      showToast(`Started ${setupDraft.mode === '3d' ? '3D Dice' : 'Scorecard Only'} (${names.length}P)`);
     }
     scheduleAiTurnIfNeeded();
   }
 
-  // ---- 1-Tap "Who Are You?" Seat Picker ----
+  // ---- 1-Tap "Who Are You?" Seat Picker (Strictly Empty Seats Only for Guests) ----
   function openSeatPicker({ preserveCustomInput = false } = {}) {
     if (!state) return;
     if (!preserveCustomInput) {
@@ -6087,14 +6536,44 @@
         list.appendChild(btn);
         return;
       }
+
       const isMe = p.claimedByDeviceId === MY_DEVICE_ID;
-      const claimedOther = p.claimedByDeviceId && !isMe;
-      const hostHint = idx === 0 && claimedOther ? 'Host seat (Player 1)' : (claimedOther ? 'Linked on another device (tap to take over)' : 'Available seat — tap to join');
+      const isHostOccupied = idx === 0 && !isMe;
+      const claimedOther = (p.claimedByDeviceId && !isMe) || isHostOccupied;
+
+      if (claimedOther) {
+        // Occupied seats (including Host Player 1) are NOT selectable
+        btn.disabled = true;
+        btn.innerHTML = `<div class="menu-item-left">
+          <span>🔒</span>
+          <div>
+            <div class="menu-item-title">${escapeHtml(p.name)}</div>
+            <div class="menu-item-sub">${idx === 0 ? 'Host (Player 1) — seat taken' : 'Seat already claimed by another player'}</div>
+          </div>
+        </div><span class="muted-note" style="font-size:11px;font-weight:700;">${idx === 0 ? 'Host' : 'Taken'}</span>`;
+        list.appendChild(btn);
+        return;
+      }
+
+      if (isMe) {
+        btn.disabled = true;
+        btn.innerHTML = `<div class="menu-item-left">
+          <span>✅</span>
+          <div>
+            <div class="menu-item-title">${escapeHtml(p.name)}</div>
+            <div class="menu-item-sub">Your current seat</div>
+          </div>
+        </div><span class="muted-note" style="font-size:11px;font-weight:700;">You</span>`;
+        list.appendChild(btn);
+        return;
+      }
+
+      // Empty seat — selectable!
       btn.innerHTML = `<div class="menu-item-left">
-        <span>${isMe ? '✅' : (claimedOther ? '📱' : '🪑')}</span>
+        <span>🪑</span>
         <div>
           <div class="menu-item-title">Play as ${escapeHtml(p.name)}</div>
-          <div class="menu-item-sub">${isMe ? 'Your current seat' : hostHint}</div>
+          <div class="menu-item-sub">Empty seat — tap to claim</div>
         </div>
       </div><span>›</span>`;
       btn.onclick = () => claimSeat(idx);
@@ -6154,11 +6633,17 @@
   }
 
   function claimSeat(idx) {
+    const seat = state.players[idx];
+    if (!seat || seat.isAI) return;
+    const isMe = seat.claimedByDeviceId === MY_DEVICE_ID;
+    if ((seat.claimedByDeviceId && !isMe) || (idx === 0 && !isMe)) {
+      showToast('That seat is already taken — pick an empty seat');
+      return;
+    }
     const customName = ($('inputSeatCustomName').value || '').trim().slice(0, 18);
     state.players.forEach((p, i) => {
       if (i !== idx && p.claimedByDeviceId === MY_DEVICE_ID) p.claimedByDeviceId = null;
     });
-    const seat = state.players[idx];
     seat.claimedByDeviceId = MY_DEVICE_ID;
     if (customName) {
       seat.name = customName;
@@ -6174,14 +6659,7 @@
     showToast(`Joined as ${seat.name} — ready to play!`);
   }
 
-  // ---- Link / Invite Devices Modal ----
-  function openLinkModal() {
-    stopQrScanner();
-    $('joinStatusText').classList.add('hidden');
-    updateSyncModalUI();
-    openModal('modalLink');
-  }
-
+  // ---- Online Room Status & Controls (Inside Unified New Game Modal) ----
   function updateSyncModalUI() {
     if (!state) return;
     const st = SyncEngine.getStatus();
@@ -6192,6 +6670,7 @@
     const hosted = state.roomId !== 'LOCAL';
     $('onlineNotHosted').classList.toggle('hidden', hosted);
     $('onlineHosted').classList.toggle('hidden', !hosted);
+    $('menuSeat').classList.toggle('hidden', !hosted);
 
     if (hosted) {
       $('displayRoomCode').textContent = state.roomId;
@@ -6201,21 +6680,24 @@
         summary.textContent = `● ${st.deviceCount} devices linked live (${st.openRtc > 0 ? 'Direct P2P' : st.brokers.join(' / ') || 'Relay'})`;
       } else if (st.brokers && st.brokers.length > 0) {
         summary.style.color = 'var(--green-ok)';
-        summary.textContent = `● Relay online (${st.brokers.join(', ')}) — scan QR or enter code on other device`;
+        summary.textContent = `● Relay online (${st.brokers.join(', ')}) — scan QR or enter code on other phone`;
       } else {
         summary.style.color = 'var(--amber)';
-        summary.textContent = '⏳ Connecting to sync relay… (check internet or play Pass-and-Play locally)';
+        summary.textContent = '⏳ Connecting to sync relay… (check internet or use This Device tab)';
       }
-      try {
-        QRCodeGen.renderToCanvas($('roomQrCanvas'), buildShareUrl());
-      } catch (_) {}
+      $('roomQrWrap').classList.toggle('hidden', roomQrCollapsed);
+      $('btnToggleQr').textContent = roomQrCollapsed ? 'Show QR' : 'Hide QR';
+      if (!roomQrCollapsed) {
+        try {
+          QRCodeGen.renderToCanvas($('roomQrCanvas'), buildShareUrl());
+        } catch (_) {}
+      }
     }
 
-    // Update menu seat subtitle
     const mine = getMyClaimedPlayerIndices();
     $('menuSeatSub').textContent = mine.length
       ? `Playing as ${state.players[mine[0]].name}`
-      : 'Unassigned (host controls unclaimed seats)';
+      : 'Pick an empty seat or watch as spectator';
   }
 
   function prepareBlankHostedRoomState(roomId, sessionToken) {
@@ -6253,11 +6735,15 @@
   function createLiveRoom() {
     const newRoomId = generateRoomCode();
     const newToken = randomHex(16);
+    roomQrCollapsed = false;
     prepareBlankHostedRoomState(newRoomId, newToken);
+    setupDraft.count = Math.max(2, state.players.length);
+    state.players.forEach((p, i) => { setupDraft.names[i] = p.name; });
     history.replaceState(null, '', location.pathname);
     SyncEngine.joinChannel(state.roomId, state.sessionToken, { publishInitial: true });
+    renderSetupModal();
     updateSyncModalUI();
-    showToast(`Room ${state.roomId} created — waiting for players…`);
+    showToast(`Room ${state.roomId} created — share code or QR!`);
   }
 
   function handleJoinRoomInput(rawInput) {
@@ -6298,7 +6784,7 @@
     history.replaceState(null, '', location.pathname);
     SyncEngine.joinChannel(roomId, sessionToken);
     $('joinStatusText').classList.add('hidden');
-    closeModal('modalLink');
+    closeModal('modalSetup');
     updateSyncModalUI();
     showToast(`Connecting to Room ${roomId}…`);
   }
@@ -6309,7 +6795,10 @@
     qrScannerCallback = onDecoded;
     const panel = $('qrScannerPanel');
     const msg = $('qrScannerMsg');
-    $('panelOnlineSync').classList.add('hidden');
+    $('setupModeTabsBar').classList.add('hidden');
+    $('setupOnlineSection').classList.add('hidden');
+    $('setupGameConfig').classList.add('hidden');
+    $('setupModalFoot').classList.add('hidden');
     panel.classList.remove('hidden');
     msg.textContent = 'Starting camera…';
 
@@ -6365,8 +6854,61 @@
     const video = $('qrVideo');
     if (video) video.srcObject = null;
     $('qrScannerPanel').classList.add('hidden');
-    $('panelOnlineSync').classList.remove('hidden');
+    $('setupModeTabsBar').classList.remove('hidden');
     qrScannerCallback = null;
+    if ($('modalSetup').classList.contains('open')) {
+      renderSetupModal();
+    }
+  }
+
+  // ---- Appearance Settings (Light/Dark Mode, Table Colour Palette & 3D Dice Style) ----
+  function applyAppearancePrefs() {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', Prefs.themeMode);
+    root.setAttribute('data-palette', Prefs.palette);
+
+    const pal = APPEARANCE_PALETTES[Prefs.palette] || APPEARANCE_PALETTES.emerald;
+    const ds = DICE_STYLES[Prefs.diceStyle] || DICE_STYLES.ivory;
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', Prefs.themeMode === 'light' ? pal.themeLight : pal.themeDark);
+    }
+    const sub = $('menuSettingsSub');
+    if (sub) {
+      sub.textContent = `${Prefs.themeMode === 'light' ? 'Light' : 'Dark'} · ${pal.label} · ${ds.label}`;
+    }
+  }
+
+  function renderSettingsModal() {
+    $('prefThemeDark').classList.toggle('active', Prefs.themeMode !== 'light');
+    $('prefThemeLight').classList.toggle('active', Prefs.themeMode === 'light');
+
+    const palGrid = $('prefPaletteGrid');
+    palGrid.innerHTML = '';
+    for (const [key, pal] of Object.entries(APPEARANCE_PALETTES)) {
+      const btn = document.createElement('button');
+      btn.className = `swatch-card ${Prefs.palette === key ? 'active' : ''}`;
+      btn.innerHTML = `<span class="swatch-dot" style="background:${pal.swatch}; border-color:${pal.accent};"></span>
+        <div><div class="swatch-name">${pal.label}</div><div class="swatch-sub">${pal.sub}</div></div>`;
+      btn.onclick = () => { Prefs.palette = key; applyAppearancePrefs(); renderSettingsModal(); };
+      palGrid.appendChild(btn);
+    }
+
+    const diceGrid = $('prefDiceGrid');
+    diceGrid.innerHTML = '';
+    for (const [key, ds] of Object.entries(DICE_STYLES)) {
+      const btn = document.createElement('button');
+      btn.className = `swatch-card ${Prefs.diceStyle === key ? 'active' : ''}`;
+      btn.innerHTML = `<span class="swatch-dot" style="background:${ds.swatch}; color:${ds.pipPreview};">⚄</span>
+        <div><div class="swatch-name">${ds.label}</div><div class="swatch-sub">${ds.sub}</div></div>`;
+      btn.onclick = () => { Prefs.diceStyle = key; applyAppearancePrefs(); renderSettingsModal(); };
+      diceGrid.appendChild(btn);
+    }
+  }
+
+  function openSettingsModal() {
+    renderSettingsModal();
+    openModal('modalSettings');
   }
 
   // ---- Final Rankings Podium ----
@@ -6410,10 +6952,13 @@
   }
 
   function updateInstallMenuLabel() {
+    const installBtn = $('menuInstall');
     if (isStandaloneMode()) {
-      $('menuInstallTitle').textContent = 'App Installed ✓';
-      $('menuInstallSub').textContent = 'Running in standalone full-screen mode';
-    } else if (deferredInstallPrompt) {
+      installBtn.classList.add('hidden');
+      return;
+    }
+    installBtn.classList.remove('hidden');
+    if (deferredInstallPrompt) {
       $('menuInstallTitle').textContent = 'Install Yachti App';
       $('menuInstallSub').textContent = 'One tap to install on this device';
     } else {
@@ -6491,8 +7036,8 @@
     });
 
     // HUD Buttons
-    $('btnMenu').addEventListener('click', () => { updateInstallMenuLabel(); openModal('modalMenu'); });
-    $('btnSyncPill').addEventListener('click', () => openLinkModal());
+    $('btnMenu').addEventListener('click', () => { updateInstallMenuLabel(); applyAppearancePrefs(); updateSyncModalUI(); openModal('modalMenu'); });
+    $('btnSyncPill').addEventListener('click', () => openSetupModal('online'));
     $('btnPassReady').addEventListener('click', () => {
       passHandoffActive = false;
       userViewOverride = null;
@@ -6506,11 +7051,15 @@
       renderAll();
     });
     $('btnMute').addEventListener('click', () => {
-      const next = Prefs.muted;
-      Prefs.sound = next;
-      Prefs.haptics = next;
+      Prefs.sound = !Prefs.sound;
       renderHUDAndControls();
-      showToast(next ? 'Sound & haptics on' : 'Muted');
+      showToast(Prefs.sound ? '🔊 Sound effects on' : '🔇 Sound effects muted');
+    });
+    $('btnHaptics').addEventListener('click', () => {
+      Prefs.haptics = !Prefs.haptics;
+      if (Prefs.haptics && navigator.vibrate) { try { navigator.vibrate(14); } catch (_) {} }
+      renderHUDAndControls();
+      showToast(Prefs.haptics ? '📳 Mobile haptics on' : 'Haptics off');
     });
 
     // Turn Override & Arena Controls
@@ -6626,16 +7175,15 @@
       if (state.mode === '3d') {
         setTimeout(() => { DiceEngine.computeLayout(); DiceEngine.syncFromState(state.turnState, true); scheduleAiTurnIfNeeded(); }, 30);
       }
-      showToast(state.mode === '3d' ? 'Switched to 3D Yachti' : 'Switched to Digital Scorecard');
+      showToast(state.mode === '3d' ? 'Switched to 3D Dice Mode' : 'Switched to Scorecard Only (Real Dice)');
     });
-    $('menuLink').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal(); });
     $('menuSeat').addEventListener('click', () => { closeModal('modalMenu'); openSeatPicker(); });
-    $('menuRename').addEventListener('click', () => { closeModal('modalMenu'); openEditNameModal(); });
-    $('menuAudioToggle').addEventListener('click', () => { Prefs.sound = !Prefs.sound; renderHUDAndControls(); });
-    $('menuHapticsToggle').addEventListener('click', () => { Prefs.haptics = !Prefs.haptics; renderHUDAndControls(); });
+    $('menuSettings').addEventListener('click', () => { closeModal('modalMenu'); openSettingsModal(); });
     $('menuInstall').addEventListener('click', handleInstallClick);
 
-    // Setup Modal
+    // Unified New Game & Online Room Modal
+    $('setupTabLocal').addEventListener('click', () => switchSetupTab('local'));
+    $('setupTabOnline').addEventListener('click', () => switchSetupTab('online'));
     $('setupMode3d').addEventListener('click', () => { setupDraft.mode = '3d'; renderSetupModal(); });
     $('setupModeCard').addEventListener('click', () => { setupDraft.mode = 'scorecard'; setupDraft.vsComputer = false; renderSetupModal(); });
     $('setupOppHuman').addEventListener('click', () => { setupDraft.vsComputer = false; renderSetupModal(); });
@@ -6643,13 +7191,16 @@
     $('setupAiCasual').addEventListener('click', () => { setupDraft.aiLevel = 'casual'; renderSetupModal(); });
     $('setupAiPro').addEventListener('click', () => { setupDraft.aiLevel = 'pro'; renderSetupModal(); });
     $('btnSetupStart').addEventListener('click', applySetupNewGame);
-    $('btnSetupJoinRoom').addEventListener('click', () => { closeModal('modalSetup'); openLinkModal(); });
 
-    // Link / Invite Room Controls
+    // Online Room Controls inside Unified New Game Modal
     $('btnCreateRoom').addEventListener('click', createLiveRoom);
-    $('btnRoomNewGame').addEventListener('click', () => { closeModal('modalLink'); openSetupModal(); });
+    $('btnToggleQr').addEventListener('click', () => {
+      roomQrCollapsed = !roomQrCollapsed;
+      updateSyncModalUI();
+    });
     $('btnLeaveRoom').addEventListener('click', () => {
       hostAwaitingPeerForNewGame = false;
+      roomQrCollapsed = false;
       const humanCount = state.players.filter(p => !p.isAI).length;
       SyncEngine.disconnect({ announceLeave: true, clearRetained: humanCount <= 2 });
       state.roomId = 'LOCAL';
@@ -6657,8 +7208,19 @@
       state.players.forEach(p => { p.claimedByDeviceId = null; });
       history.replaceState(null, '', location.pathname);
       saveStateLocal();
+      renderSetupModal();
       renderAll();
       showToast(humanCount <= 2 ? 'Room closed — switched to Local play' : 'Left room — switched to Local play');
+    });
+
+    // Appearance Settings Controls
+    $('prefThemeDark').addEventListener('click', () => { Prefs.themeMode = 'dark'; applyAppearancePrefs(); renderSettingsModal(); });
+    $('prefThemeLight').addEventListener('click', () => { Prefs.themeMode = 'light'; applyAppearancePrefs(); renderSettingsModal(); });
+    $('btnResetAppearance').addEventListener('click', () => {
+      Prefs.resetAppearance();
+      applyAppearancePrefs();
+      renderSettingsModal();
+      showToast('Appearance reset to defaults');
     });
     $('btnCopyLink').addEventListener('click', async () => {
       try {
@@ -6780,16 +7342,23 @@
       onPacket: handleRemotePacket,
       onStatusChange: () => updateSyncModalUI(),
       onPeerConnected: () => {
-        updateSyncModalUI();
         const gameNotStartedYet = state && state.turnState.rollNumber === 0 &&
           state.players.every(p => ALL_CATS.every(c => p.scores[c.key] === null));
 
         if (hostAwaitingPeerForNewGame && !awaitingRoomSync && gameNotStartedYet) {
           hostAwaitingPeerForNewGame = false;
-          closeModal('modalLink');
-          openSetupModal();
-          showToast('🔗 Player connected! Set up your new game', 3600);
+          roomQrCollapsed = true;
+          if ($('modalSetup').classList.contains('open')) {
+            activeSetupTab = 'online';
+            syncOpenSetupModalFromState();
+            renderSetupModal();
+            updateSyncModalUI();
+          } else {
+            openSetupModal('online');
+          }
+          showToast('🔗 Player connected! Ready to start your game', 3600);
         } else {
+          updateSyncModalUI();
           showToast('🔗 Another player connected to this room!', 3000);
         }
       },
@@ -6863,6 +7432,8 @@
       }
     });
 
+    applyAppearancePrefs();
+    updateInstallMenuLabel();
     wireUI();
     DiceEngine.syncFromState(state.turnState, true);
     renderAll();

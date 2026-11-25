@@ -294,6 +294,36 @@
     white-space: nowrap;
   }
 
+  /* Last Remote Score Strip */
+  .last-score-strip {
+    flex: 0 0 auto;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: rgba(56, 189, 248, 0.12);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.28);
+    color: #bae6fd;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .last-score-strip.visible { display: flex; }
+
+  @keyframes justScoredPulse {
+    0%   { box-shadow: inset 0 0 0 2px var(--gold), 0 0 12px rgba(229, 185, 76, 0.65); background: rgba(229, 185, 76, 0.28); }
+    100% { box-shadow: inset 0 0 0 1px rgba(229, 185, 76, 0.5); background: rgba(229, 185, 76, 0.10); }
+  }
+  .cell-btn.just-scored {
+    border-radius: 6px;
+    margin: 2px 4px;
+    width: calc(100% - 8px);
+    height: 32px;
+    color: #fef08a !important;
+    animation: justScoredPulse 1.4s ease-out forwards;
+  }
+
   /* Joker Alert Strip */
   .joker-strip {
     flex: 0 0 auto;
@@ -1172,6 +1202,9 @@
     </div>
   </div>
 
+  <!-- Last Scored Feed Strip -->
+  <div id="lastScoreStrip" class="last-score-strip"></div>
+
   <!-- Official Joker Rule Banner -->
   <div id="jokerStrip" class="joker-strip"></div>
 
@@ -1249,7 +1282,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.1.1 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.2.0 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1515,8 +1548,9 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.1.1';
+  const APP_VERSION = '1.2.0';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
+  const SESSION_ROOM_KEY = 'yachti_v1_room_session';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
   const STORAGE_PREFS_KEY = 'yachti_v1_prefs';
   const MAX_PLAYERS = 6;
@@ -1621,11 +1655,13 @@
       sessionToken: sessionToken || randomHex(16),
       mode: mode === 'scorecard' ? 'scorecard' : '3d',
       gameStatus: 'active',
+      commitSeq: 1,
       turnSeq: 1,
       roundNumber: 1,
       activePlayerIndex: 0,
       players,
       turnState: createFreshTurnState(),
+      lastScoredEvent: null,
       undoStack: [],
       updatedAt: Date.now()
     };
@@ -1765,7 +1801,7 @@
 
     if (player.scores[matchUpperKey] === null) {
       // Priority 1: MUST score in matching Upper Section box
-      jokerMessage = `🃏 Joker Rule: Must score ${sum} in ${matchUpperLabel}${bonusText}`;
+      jokerMessage = `🃏 2nd Yachti${bonusText}: Tap ${matchUpperLabel} (${sum}) — completes this turn`;
       for (const cat of ALL_CATS) {
         if (player.scores[cat.key] !== null) continue;
         const allowed = cat.key === matchUpperKey;
@@ -1780,7 +1816,7 @@
       const openLower = LOWER_KEYS.filter(k => player.scores[k] === null);
       if (openLower.length > 0) {
         // Priority 2: Any open Lower Section box at FULL value
-        jokerMessage = `🃏 Joker Rule: Pick any open Lower box at full value${bonusText}`;
+        jokerMessage = `🃏 2nd Yachti${bonusText}: Pick any open Lower box at full value — completes this turn`;
         for (const cat of ALL_CATS) {
           if (player.scores[cat.key] !== null) continue;
           const isLower = LOWER_KEYS.includes(cat.key);
@@ -1800,7 +1836,7 @@
         }
       } else {
         // Priority 3: 0 in any remaining open Upper Section box
-        jokerMessage = `🃏 Joker Rule: Score 0 in any open Upper box${bonusText}`;
+        jokerMessage = `🃏 2nd Yachti${bonusText}: Score 0 in any open Upper box — completes this turn`;
         for (const cat of ALL_CATS) {
           if (player.scores[cat.key] !== null) continue;
           const isUpper = UPPER_KEYS.includes(cat.key);
@@ -2843,7 +2879,7 @@
      * with smooth pixel-space guided settling so rolled dice NEVER overlap or clip off-edge.
      * If device woke late (elapsed > ANIM_MS), snaps immediately to clean final positions.
      */
-    function playRollPayload(payload, { silent = false } = {}) {
+    function playRollPayload(payload, { silent = false, forcePlay = false, elapsedMs = null } = {}) {
       if (!payload) return;
       dragState = null;
 
@@ -3031,8 +3067,11 @@
         }
       }
 
-      const elapsed = Math.max(0, Date.now() - (payload.startedAt || Date.now()));
-      if (elapsed >= ANIM_MS) {
+      // Live ROLL_START passes forcePlay=true (elapsed=0) so clock skew between two phones NEVER skips animation
+      const elapsed = forcePlay
+        ? 0
+        : (typeof elapsedMs === 'number' ? Math.max(0, elapsedMs) : Math.max(0, Date.now() - (payload.startedAt || Date.now())));
+      if (!forcePlay && elapsed >= ANIM_MS) {
         // Late-joining / waking device: snap cleanly to settled state
         applySimFrame(lastSnap, simW, simH);
         repositionRestingDice();
@@ -3500,14 +3539,16 @@
     const knownDevices = new Map(); // deviceId -> lastSeenMs
     let wakeSuppressUntil = 0;
 
-    // Pending Airplane handshake state
+    // Pending Airplane handshake state & LWT grace timers
     let airPendingPc = null;
     let airPendingDc = null;
+    const leaveGraceTimers = new Map(); // senderId -> timerId
 
     let handlers = {
       onPacket: () => {},
       onStatusChange: () => {},
       onPeerConnected: () => {},
+      onPeerLeft: () => {},
       getFullState: () => null,
       onJoinGrantReceived: () => {},
       onJoinTimeout: () => {}
@@ -3558,12 +3599,22 @@
       return out;
     }
 
-    function mqttConnectPacket(clientId) {
+    function mqttConnectPacket(clientId, will = null) {
       const proto = encodeUtf8String('MQTT');
       const cid = encodeUtf8String(clientId);
-      const vh = concatU8([proto, new Uint8Array([4, 2, 0, 60])]); // v3.1.1, cleanSession, keepAlive=60s
-      const body = concatU8([vh, cid]);
+      const flags = will ? 0x06 : 0x02; // cleanSession=1, willFlag=(will?1:0), willQoS=0, willRetain=0
+      const vh = concatU8([proto, new Uint8Array([4, flags, 0, 45])]); // v3.1.1, keepAlive=45s
+      const parts = [vh, cid];
+      if (will) {
+        parts.push(encodeUtf8String(will.topic));
+        parts.push(encodeUtf8String(will.payload));
+      }
+      const body = concatU8(parts);
       return concatU8([new Uint8Array([0x10, ...encodeRemainingLength(body.length)]), body]);
+    }
+
+    function mqttDisconnectPacket() {
+      return new Uint8Array([0xE0, 0x00]);
     }
 
     function mqttSubscribePacket(topic) {
@@ -3695,11 +3746,6 @@
               sendJoinRequestNow();
             } else if (activeRoomId !== 'LOCAL' && activeToken) {
               sendHello();
-              // Publish current authoritative state (retained) if we already have a real game (turnSeq > 0)
-              const st = handlers.getFullState();
-              if (st && st.turnSeq > 0 && st.roomId === activeRoomId && st.sessionToken === activeToken) {
-                sendPacket({ type: 'STATE_SYNC', state: st }, { retain: true });
-              }
             }
           }, 260);
         } else if (pktType === 3) {
@@ -3763,7 +3809,23 @@
         clearTimeout(openTimeout);
         b.buf = new Uint8Array(0);
         const cid = 'y_' + MY_DEVICE_ID.slice(-6) + '_' + randomHex(3);
-        try { sock.send(mqttConnectPacket(cid)); } catch (_) {}
+        let will = null;
+        if (activeRoomId !== 'LOCAL' && activeToken && channelKey) {
+          will = {
+            topic: `yachti/v1/ch/${channelKey}`,
+            payload: JSON.stringify({
+              type: 'PEER_LEAVE',
+              roomId: activeRoomId,
+              sessionToken: activeToken,
+              senderId: MY_DEVICE_ID,
+              isWill: true
+            })
+          };
+          b.hasWillFor = channelKey;
+        } else {
+          b.hasWillFor = '';
+        }
+        try { sock.send(mqttConnectPacket(cid, will)); } catch (_) {}
         clearInterval(b.pingTimer);
         b.pingTimer = setInterval(() => {
           if (b.ws === sock && sock.readyState === 1 && b.connected) {
@@ -3822,9 +3884,13 @@
         b.subsSent.clear();
         if (b.ws) {
           b.ws.onopen = b.ws.onmessage = b.ws.onerror = b.ws.onclose = null;
-          try { b.ws.close(); } catch (_) {}
+          try {
+            if (b.ws.readyState === 1) b.ws.send(mqttDisconnectPacket());
+            b.ws.close();
+          } catch (_) {}
           b.ws = null;
         }
+        b.hasWillFor = '';
         b.delay = 1400;
       }
     }
@@ -4187,6 +4253,37 @@
         return;
       }
 
+      // Handle explicit or LWT PEER_LEAVE before refreshing knownDevices
+      if (pkt.type === 'PEER_LEAVE') {
+        const leaverId = pkt.senderId;
+        const finalizeLeave = () => {
+          leaveGraceTimers.delete(leaverId);
+          knownDevices.delete(leaverId);
+          closePeer(leaverId);
+          notifyStatus();
+          handlers.onPeerLeft(leaverId, !!pkt.isWill);
+        };
+        if (pkt.isWill) {
+          // Ungraceful socket drop (e.g., swiped PWA closed or brief signal drop): wait 8s before confirming departure
+          if (!leaveGraceTimers.has(leaverId)) {
+            leaveGraceTimers.set(leaverId, setTimeout(finalizeLeave, 8000));
+          }
+        } else {
+          if (leaveGraceTimers.has(leaverId)) {
+            clearTimeout(leaveGraceTimers.get(leaverId));
+            leaveGraceTimers.delete(leaverId);
+          }
+          finalizeLeave();
+        }
+        return;
+      }
+
+      // Any non-leave packet from a peer cancels a pending LWT grace timer
+      if (leaveGraceTimers.has(pkt.senderId)) {
+        clearTimeout(leaveGraceTimers.get(pkt.senderId));
+        leaveGraceTimers.delete(pkt.senderId);
+      }
+
       const wasKnown = knownDevices.has(pkt.senderId);
       knownDevices.set(pkt.senderId, Date.now());
       notifyStatus();
@@ -4197,13 +4294,12 @@
         return;
       }
 
-      if (pkt.type === 'HELLO') {
-        if (!airplaneModeActive && transport === 'mqtt') {
+      if (pkt.type === 'HELLO' || pkt.type === 'SYNC_REQ') {
+        if (pkt.type === 'HELLO' && !airplaneModeActive && transport === 'mqtt') {
           initiateOnlineWebRTC(pkt.senderId);
         }
-        // Only reply with STATE_SYNC if we hold an authoritative game (turnSeq > 0)
         const st = handlers.getFullState();
-        if (st && st.turnSeq > 0 && Date.now() > wakeSuppressUntil) {
+        if (st && st.turnSeq > 0 && (pkt.type === 'SYNC_REQ' || Date.now() > wakeSuppressUntil)) {
           sendPacket({ type: 'STATE_SYNC', state: st });
         }
         return;
@@ -4285,7 +4381,7 @@
       }, 16000);
     }
 
-    function joinChannel(roomId, sessionToken, { isAirplane = false } = {}) {
+    function joinChannel(roomId, sessionToken, { isAirplane = false, publishInitial = false } = {}) {
       const sameRoom = activeRoomId === roomId && activeToken === sessionToken && !!airplaneModeActive === !!isAirplane;
       pendingJoinCode = '';
       clearInterval(joinRetryTimer);
@@ -4318,30 +4414,72 @@
       }
 
       if (roomId !== 'LOCAL' && !airplaneModeActive) {
-        // Reuse any already-open broker sockets and connect the rest in parallel!
+        // Reconnect any broker socket that was opened before channelKey was known so MQTT LWT is armed
+        for (const b of brokerSockets.values()) {
+          if (b.ws && b.hasWillFor !== channelKey) {
+            try { if (b.ws.readyState === 1) b.ws.send(mqttDisconnectPacket()); b.ws.close(); } catch (_) {}
+            b.ws = null;
+            b.connected = false;
+            b.subsSent.clear();
+          }
+        }
         ensureMqttPool();
         subscribeAllConnectedBrokers();
         setTimeout(() => {
           if (activeRoomId === roomId && activeToken === sessionToken) {
             subscribeAllConnectedBrokers();
             sendHello();
-            const st = handlers.getFullState();
-            if (st && st.turnSeq > 0) sendPacket({ type: 'STATE_SYNC', state: st }, { retain: true });
+            if (publishInitial) {
+              const st = handlers.getFullState();
+              if (st && st.turnSeq > 0) sendPacket({ type: 'STATE_SYNC', state: st }, { retain: true });
+            }
           }
-        }, 320);
+        }, 420);
         // Second HELLO nudge in case first arrived before peer finished subscribing
         setTimeout(() => {
           if (activeRoomId === roomId && activeToken === sessionToken && knownDevices.size === 0) {
             sendHello();
           }
-        }, 1600);
+        }, 1800);
       } else {
         cleanupMqttPool();
       }
       notifyStatus();
     }
 
-    function disconnect() {
+    function notifyLeaving({ clearRetained = false } = {}) {
+      if (activeRoomId === 'LOCAL' || !activeToken) return;
+      const pkt = {
+        type: 'PEER_LEAVE',
+        roomId: activeRoomId,
+        sessionToken: activeToken,
+        senderId: MY_DEVICE_ID,
+        isWill: false,
+        msgId: 'lv_' + randomHex(4),
+        sentAt: Date.now()
+      };
+      const json = JSON.stringify(pkt);
+      if (bc) { try { bc.postMessage(json); } catch (_) {} }
+      for (const rec of peers.values()) {
+        if (rec.dc && rec.dc.readyState === 'open') {
+          try { rec.dc.send(json); } catch (_) {}
+        }
+      }
+      if (!airplaneModeActive && channelKey) {
+        publishOnAllBrokers(`yachti/v1/ch/${channelKey}`, json, false);
+        if (clearRetained) {
+          // Empty retained payload clears stale room snapshot on broker
+          publishOnAllBrokers(`yachti/v1/ch/${channelKey}`, '', true);
+        }
+      }
+    }
+
+    function disconnect({ announceLeave = true, clearRetained = false } = {}) {
+      for (const tid of leaveGraceTimers.values()) clearTimeout(tid);
+      leaveGraceTimers.clear();
+      if (announceLeave && activeRoomId !== 'LOCAL' && activeToken) {
+        notifyLeaving({ clearRetained });
+      }
       pendingJoinCode = '';
       airplaneModeActive = false;
       activeRoomId = 'LOCAL';
@@ -4435,6 +4573,7 @@
       init,
       joinChannel,
       disconnect,
+      notifyLeaving,
       sendPacket,
       sendHello,
       getStatus,
@@ -4703,6 +4842,7 @@
   let lastAirAnswerCode = '';
   let awaitingRoomSync = false;
   let activeLinkTab = 'online';
+  let lastAnnouncedScoreSeq = 0;
 
   // Setup modal temporary selections & AI turn runner
   let setupDraft = { mode: '3d', vsComputer: false, aiLevel: 'pro', aiName: 'Yachti Bot', count: 2, names: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'] };
@@ -4795,10 +4935,37 @@
     document.querySelectorAll('.modal-backdrop.open').forEach(m => closeModal(m.id));
   }
 
-  // ---- Local Persistence & URL Hash Room Parsing ----
+  // ---- Local Persistence (Room Credentials Session-Scoped so Closing App Disconnects Cleanly) ----
+  function saveSessionRoom(roomId, sessionToken) {
+    try {
+      if (roomId && roomId !== 'LOCAL' && sessionToken) {
+        sessionStorage.setItem(SESSION_ROOM_KEY, JSON.stringify({ roomId, sessionToken }));
+      } else {
+        sessionStorage.removeItem(SESSION_ROOM_KEY);
+      }
+    } catch (_) {}
+  }
+
+  function loadSessionRoom() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_ROOM_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.roomId && parsed.roomId !== 'LOCAL' && parsed.sessionToken) return parsed;
+    } catch (_) {}
+    return null;
+  }
+
   function saveStateLocal() {
     if (!state) return;
-    try { localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(state)); } catch (_) {}
+    saveSessionRoom(state.roomId, state.sessionToken);
+    try {
+      // Save game state locally as LOCAL so reopening a closed app starts cleanly without zombie room reconnects
+      const localCopy = deepClone(state);
+      localCopy.roomId = 'LOCAL';
+      localCopy.sessionToken = '';
+      localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(localCopy));
+    } catch (_) {}
   }
 
   function loadStateLocal() {
@@ -4809,6 +4976,18 @@
       if (parsed && parsed.version === 1 && Array.isArray(parsed.players) && parsed.players.length >= 1) {
         parsed.turnState = Object.assign(createFreshTurnState(), parsed.turnState || {});
         parsed.turnState.animating = false;
+        if (typeof parsed.commitSeq !== 'number') parsed.commitSeq = parsed.turnSeq || 1;
+        if (typeof parsed.lastScoredEvent === 'undefined') parsed.lastScoredEvent = null;
+        // Restore room ONLY if this browser/PWA session is still alive (page refresh / wake), never after full app close
+        const sess = loadSessionRoom();
+        if (sess) {
+          parsed.roomId = sess.roomId;
+          parsed.sessionToken = sess.sessionToken;
+        } else {
+          parsed.roomId = 'LOCAL';
+          parsed.sessionToken = randomHex(16);
+          parsed.players.forEach(p => { p.claimedByDeviceId = null; });
+        }
         return parsed;
       }
     } catch (_) {}
@@ -4861,10 +5040,28 @@
     return isActivePlayerControllableLocally();
   }
 
-  // ---- Deterministic State Merge ----
-  function mergeIncomingState(incoming) {
+  function buildWireState(st) {
+    if (!st) return null;
+    const copy = deepClone(st);
+    // Keep wire payloads tiny (<2KB) by capping synced undo history to the latest 3 commits without heavy roll impulse arrays
+    if (Array.isArray(copy.undoStack) && copy.undoStack.length > 3) {
+      copy.undoStack = copy.undoStack.slice(-3);
+    }
+    if (Array.isArray(copy.undoStack)) {
+      copy.undoStack.forEach(s => {
+        if (s.turnStateSnapshot) s.turnStateSnapshot.lastRollPayload = null;
+      });
+    }
+    return copy;
+  }
+
+  // ---- Deterministic State Merge (commitSeq-first so fast ROLL_START never drops a score commit!) ----
+  function mergeIncomingState(incoming, pktSentAt = null) {
     if (!incoming || incoming.version !== 1 || !Array.isArray(incoming.players)) return false;
     if (!state || incoming.roomId !== state.roomId || incoming.sessionToken !== state.sessionToken) return false;
+
+    const inCommit = typeof incoming.commitSeq === 'number' ? incoming.commitSeq : (incoming.turnSeq || 0);
+    const curCommit = typeof state.commitSeq === 'number' ? state.commitSeq : (state.turnSeq || 0);
 
     // Always merge newer player names per-field via nameUpdatedAt
     if (state.players.length === incoming.players.length) {
@@ -4876,10 +5073,11 @@
       }
     }
 
-    const newerTurn = (incoming.turnSeq > state.turnSeq) ||
-      (incoming.turnSeq === state.turnSeq && (incoming.updatedAt || 0) > (state.updatedAt || 0));
+    const isNewer = (inCommit > curCommit) ||
+      (inCommit === curCommit && incoming.turnSeq > state.turnSeq) ||
+      (inCommit === curCommit && incoming.turnSeq === state.turnSeq && (incoming.updatedAt || 0) > (state.updatedAt || 0));
 
-    if (!newerTurn) {
+    if (!isNewer) {
       saveStateLocal();
       renderAll();
       return false;
@@ -4901,32 +5099,56 @@
     }
 
     const activeChanged = state.activePlayerIndex !== incoming.activePlayerIndex;
+    const wasInitialJoin = awaitingRoomSync && (incoming.turnSeq > 0 || inCommit > 0);
     state = deepClone(incoming);
+    state.commitSeq = inCommit;
     state.players = mergedPlayers;
-    if (activeChanged) localOverrideActive = false;
+    if (activeChanged) {
+      localOverrideActive = false;
+      userViewOverride = null; // Auto-switch cleanly between Focus View (my turn) and All-Players View (opponent's turn)
+    }
 
     saveStateLocal();
 
-    // Sync 3D dice visual state
+    // Sync 3D dice visual state (using sender-clock delta so clock skew NEVER breaks animation!)
     if (nextRollPayload && nextRollPayload.rollId && nextRollPayload.rollId !== prevRollId && state.turnState.rollNumber > 0) {
-      state.turnState.animating = true;
-      DiceEngine.playRollPayload(nextRollPayload);
+      const senderAge = (pktSentAt && nextRollPayload.startedAt) ? Math.max(0, pktSentAt - nextRollPayload.startedAt) : 9999;
+      if (!wasInitialJoin && senderAge < 1500) {
+        state.turnState.animating = true;
+        DiceEngine.playRollPayload(nextRollPayload, { forcePlay: true });
+      } else {
+        state.turnState.animating = false;
+        DiceEngine.playRollPayload(nextRollPayload, { elapsedMs: 9999, silent: true });
+      }
     } else {
       state.turnState.animating = false;
       const heldChanged = (state.turnState.heldMask || []).some((h, i) => h !== prevHeld[i]);
       DiceEngine.syncFromState(state.turnState, !heldChanged);
     }
 
-    const receivedInitialRoomSync = awaitingRoomSync && state.turnSeq > 0;
-    if (receivedInitialRoomSync) awaitingRoomSync = false;
+    if (wasInitialJoin) awaitingRoomSync = false;
 
     cancelAiTurn();
     renderAll();
+
+    // Announce opponent's score clearly even if scrolled to a different section of the scorecard!
+    const lse = state.lastScoredEvent;
+    if (!wasInitialJoin && lse && lse.commitSeq > lastAnnouncedScoreSeq) {
+      lastAnnouncedScoreSeq = lse.commitSeq;
+      const bTxt = lse.grantYachtiBonus ? ' (+100 Yachti Bonus!)' : '';
+      showToast(`📝 ${lse.playerName} scored ${lse.score} in ${lse.catLabel}${bTxt}`, 3800);
+      // Scroll newly scored cell into view when watching All-Players view
+      if (!shouldShowFocusView()) {
+        const el = document.querySelector(`[data-scored-cell="${lse.playerId}:${lse.catKey}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
     if (state.gameStatus === 'finished') {
       openFinishModal();
     } else {
       scheduleAiTurnIfNeeded();
-      if (receivedInitialRoomSync && getMyClaimedPlayerIndices().length === 0) {
+      if (wasInitialJoin && getMyClaimedPlayerIndices().length === 0) {
         closeModal('modalLink');
         openSeatPicker();
         showToast(`Synced Room ${state.roomId}! Pick your seat`);
@@ -4940,7 +5162,7 @@
   function broadcastFullState() {
     state.updatedAt = Date.now();
     saveStateLocal();
-    SyncEngine.sendPacket({ type: 'STATE_SYNC', state }, { retain: state.turnSeq > 0 });
+    SyncEngine.sendPacket({ type: 'STATE_SYNC', state: buildWireState(state) }, { retain: state.turnSeq > 0 });
   }
 
   // ---- Core Gameplay Actions ----
@@ -4970,8 +5192,8 @@
     state.updatedAt = Date.now();
     saveStateLocal();
 
-    SyncEngine.sendPacket({ type: 'ROLL_START', payload, activePlayerIndex: state.activePlayerIndex });
-    DiceEngine.playRollPayload(payload);
+    SyncEngine.sendPacket({ type: 'ROLL_START', commitSeq: state.commitSeq || 1, payload, activePlayerIndex: state.activePlayerIndex });
+    DiceEngine.playRollPayload(payload, { forcePlay: true });
     renderHUDAndControls();
     return true;
   }
@@ -5069,6 +5291,7 @@
     SFX.playReserve(isHeld);
     SyncEngine.sendPacket({
       type: 'HOLD_MOVE',
+      commitSeq: state.commitSeq || 1,
       turnSeq: state.turnSeq,
       dieIdx,
       held: !!isHeld,
@@ -5094,6 +5317,7 @@
     SFX.playReserve(false);
     SyncEngine.sendPacket({
       type: 'HOLD_MOVE',
+      commitSeq: state.commitSeq || 1,
       turnSeq: state.turnSeq,
       dieIdx: -1,
       held: false,
@@ -5107,13 +5331,16 @@
     const player = state.players[playerIndex];
     if (!player || player.scores[catKey] !== null) return;
 
-    // Push bounded 10-step undo snapshot
+    // Push bounded 10-step undo snapshot (without heavy roll impulses)
+    const compactTurnSnap = deepClone(state.turnState);
+    compactTurnSnap.lastRollPayload = null;
     state.undoStack.push({
+      commitSeq: state.commitSeq || 1,
       turnSeq: state.turnSeq,
       roundNumber: state.roundNumber,
       activePlayerIndex: state.activePlayerIndex,
       playersSnapshot: deepClone(state.players),
-      turnStateSnapshot: deepClone(state.turnState)
+      turnStateSnapshot: compactTurnSnap
     });
     if (state.undoStack.length > MAX_UNDO) {
       state.undoStack.splice(0, state.undoStack.length - MAX_UNDO);
@@ -5131,8 +5358,23 @@
     }
 
     // Advance turn / round or finish game
+    state.commitSeq = (state.commitSeq || 1) + 1;
     state.turnSeq++;
     localOverrideActive = false;
+    userViewOverride = null; // Automatically flip to All-Players View while watching next player's turn
+
+    const catObj = ALL_CATS.find(c => c.key === catKey);
+    state.lastScoredEvent = {
+      playerId: player.id,
+      playerName: player.name,
+      catKey,
+      catLabel: catObj ? catObj.label : catKey,
+      score: scoreValue,
+      grantYachtiBonus: !!grantYachtiBonus,
+      commitSeq: state.commitSeq,
+      at: Date.now()
+    };
+    lastAnnouncedScoreSeq = state.commitSeq;
 
     if (isGameFinished(state.players)) {
       state.gameStatus = 'finished';
@@ -5171,6 +5413,7 @@
     if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
 
     player.yachtiBonuses = (player.yachtiBonuses || 0) + 1;
+    state.commitSeq = (state.commitSeq || 1) + 1;
     state.turnSeq++;
     SFX.playYachtiFanfare();
     showToast(`+100 Yachti Bonus for ${player.name}!`);
@@ -5193,8 +5436,11 @@
     state.roundNumber = snap.roundNumber;
     state.activePlayerIndex = snap.activePlayerIndex;
     state.gameStatus = 'active';
+    state.commitSeq = (state.commitSeq || 1) + 1;
     state.turnSeq++;
+    state.lastScoredEvent = null;
     localOverrideActive = false;
+    userViewOverride = null;
 
     SFX.playUndo();
     closeModal('modalFinish');
@@ -5225,8 +5471,11 @@
     state.players = keptPlayers;
     state.turnState = createFreshTurnState();
     state.undoStack = [];
+    state.lastScoredEvent = null;
+    state.commitSeq = (state.commitSeq || 1) + 1;
     state.turnSeq++;
     localOverrideActive = false;
+    userViewOverride = null;
 
     closeModal('modalFinish');
     broadcastFullState();
@@ -5240,11 +5489,24 @@
   function handleRemotePacket(pkt) {
     if (!state) return;
     if (pkt.type === 'STATE_SYNC' && pkt.state) {
-      mergeIncomingState(pkt.state);
+      mergeIncomingState(pkt.state, pkt.sentAt || null);
     } else if (pkt.type === 'ROLL_START' && pkt.payload) {
-      if (pkt.payload.turnSeq <= state.turnSeq) return;
-      state.turnSeq = pkt.payload.turnSeq;
-      if (typeof pkt.activePlayerIndex === 'number') state.activePlayerIndex = pkt.activePlayerIndex;
+      const pktCommit = typeof pkt.commitSeq === 'number' ? pkt.commitSeq : (state.commitSeq || 1);
+      const curCommit = state.commitSeq || 1;
+      if (pktCommit < curCommit) return;
+      if (pktCommit === curCommit && pkt.payload.turnSeq <= state.turnSeq) return;
+
+      // If sender has a newer score commit than we do, request full STATE_SYNC immediately (never let turnSeq hide a missed score!)
+      if (pktCommit > curCommit) {
+        SyncEngine.sendPacket({ type: 'SYNC_REQ' });
+      } else {
+        state.turnSeq = pkt.payload.turnSeq;
+      }
+
+      if (typeof pkt.activePlayerIndex === 'number' && state.activePlayerIndex !== pkt.activePlayerIndex) {
+        state.activePlayerIndex = pkt.activePlayerIndex;
+        userViewOverride = null;
+      }
       state.turnState.rollNumber = pkt.payload.rollNumber;
       state.turnState.heldMask = pkt.payload.heldMask.slice();
       state.turnState.diceValues = pkt.payload.finalValues.slice();
@@ -5252,11 +5514,19 @@
       state.turnState.animating = true;
       state.updatedAt = Date.now();
       saveStateLocal();
-      DiceEngine.playRollPayload(pkt.payload);
+      // ALWAYS animate live ROLL_START from t=0 regardless of cross-device clock offset!
+      DiceEngine.playRollPayload(pkt.payload, { forcePlay: true });
       renderAll();
     } else if (pkt.type === 'HOLD_MOVE' && Array.isArray(pkt.heldMask)) {
-      if (pkt.turnSeq <= state.turnSeq) return;
-      state.turnSeq = pkt.turnSeq;
+      const pktCommit = typeof pkt.commitSeq === 'number' ? pkt.commitSeq : (state.commitSeq || 1);
+      const curCommit = state.commitSeq || 1;
+      if (pktCommit < curCommit) return;
+      if (pktCommit > curCommit) {
+        SyncEngine.sendPacket({ type: 'SYNC_REQ' });
+      } else {
+        if (pkt.turnSeq <= state.turnSeq) return;
+        state.turnSeq = pkt.turnSeq;
+      }
       const prev = state.turnState.heldMask.slice();
       state.turnState.heldMask = pkt.heldMask.slice();
       state.updatedAt = Date.now();
@@ -5401,6 +5671,17 @@
       relBtn.classList.add('hidden');
     }
 
+    // Last Scored Feed Strip (stays visible until next commit so bottom-half scores are never missed!)
+    const lastStrip = $('lastScoreStrip');
+    const lse = state.lastScoredEvent;
+    if (lse && state.players.length > 1 && state.gameStatus === 'active') {
+      const bTxt = lse.grantYachtiBonus ? ' · +100 Yachti Bonus!' : '';
+      lastStrip.textContent = `Last score: ${lse.playerName} → ${lse.catLabel}: ${lse.score} pts${bTxt}`;
+      lastStrip.classList.add('visible');
+    } else {
+      lastStrip.classList.remove('visible');
+    }
+
     // Joker strip
     const jokerStrip = $('jokerStrip');
     if (!isScorecardOnly && state.gameStatus === 'active' && rNum > 0 && !anim && active) {
@@ -5529,7 +5810,9 @@
     const tdClass = `player-col ${isAct ? 'is-active' : ''}`;
 
     if (val !== null && val !== undefined) {
-      return `<td class="${tdClass}"><button class="cell-btn filled ${val === 0 ? 'zero' : ''}" disabled>${val}</button></td>`;
+      const lse = state.lastScoredEvent;
+      const isJustScored = !!(lse && lse.playerId === player.id && lse.catKey === catKey);
+      return `<td class="${tdClass}" data-scored-cell="${player.id}:${catKey}"><button class="cell-btn filled ${val === 0 ? 'zero' : ''} ${isJustScored ? 'just-scored' : ''}" disabled>${val}</button></td>`;
     }
 
     if (state.gameStatus !== 'active') {
@@ -5715,6 +5998,8 @@
     const nextRoomId = keepRoom ? state.roomId : 'LOCAL';
     const nextToken = keepRoom ? state.sessionToken : null;
     const prevSeq = state ? state.turnSeq : 0;
+    const prevCommit = state ? (state.commitSeq || prevSeq) : 0;
+    const prevClaims = keepRoom ? state.players.map(p => p.claimedByDeviceId) : [];
 
     state = createCanonicalState({
       playerNames: names,
@@ -5724,6 +6009,18 @@
       vsComputer: isAi,
       aiLevel: setupDraft.aiLevel
     });
+    // Preserve device seat ownership inside an active room so Focus View / All-Players View keeps working!
+    if (keepRoom) {
+      state.players.forEach((p, idx) => {
+        if (!p.isAI && idx < prevClaims.length && prevClaims[idx]) {
+          p.claimedByDeviceId = prevClaims[idx];
+        }
+      });
+      if (getMyClaimedPlayerIndices().length === 0 && state.players[0] && !state.players[0].isAI && !state.players[0].claimedByDeviceId) {
+        state.players[0].claimedByDeviceId = MY_DEVICE_ID;
+      }
+    }
+    state.commitSeq = prevCommit + 1;
     state.turnSeq = prevSeq + 1;
     userViewOverride = null;
     localOverrideActive = false;
@@ -5788,6 +6085,7 @@
       addBtn.onclick = () => {
         const idx = state.players.length;
         state.players.push(createPlayer(idx, `Player ${idx + 1}`, MY_DEVICE_ID));
+        state.commitSeq = (state.commitSeq || 1) + 1;
         state.turnSeq++;
         broadcastFullState();
         closeModal('modalSeat');
@@ -5826,7 +6124,9 @@
       if (i !== idx && p.claimedByDeviceId === MY_DEVICE_ID) p.claimedByDeviceId = null;
     });
     state.players[idx].claimedByDeviceId = MY_DEVICE_ID;
+    state.commitSeq = (state.commitSeq || 1) + 1;
     state.turnSeq++;
+    userViewOverride = null;
     broadcastFullState();
     closeModal('modalSeat');
     renderAll();
@@ -5895,11 +6195,17 @@
   function createLiveRoom() {
     state.roomId = generateRoomCode();
     state.sessionToken = randomHex(16);
+    state.commitSeq = Math.max(1, (state.commitSeq || 0) + 1);
     state.turnSeq = Math.max(1, state.turnSeq + 1);
+    // Auto-claim Seat 0 for the Host so Focus View vs. All-Players View works automatically once Guest claims Seat 1
+    if (getMyClaimedPlayerIndices().length === 0 && state.players[0] && !state.players[0].isAI) {
+      state.players[0].claimedByDeviceId = MY_DEVICE_ID;
+    }
     awaitingRoomSync = false;
     saveStateLocal();
-    SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false });
-    history.replaceState(null, '', `#r=${state.roomId}&t=${state.sessionToken}`);
+    // Keep URL clean (share/QR uses buildShareUrl()) so closing & reopening the app starts fresh in Local mode
+    history.replaceState(null, '', location.pathname);
+    SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false, publishInitial: true });
     updateSyncModalUI();
     showToast(`Room ${state.roomId} created — connecting relay…`);
   }
@@ -5942,10 +6248,12 @@
   function connectToOnlineRoom(roomId, sessionToken, promptSeat = true) {
     state.roomId = roomId;
     state.sessionToken = sessionToken;
+    state.commitSeq = 0;
     state.turnSeq = 0; // Allow authoritative Host state to replace our local stub immediately
     awaitingRoomSync = !!promptSeat;
     saveStateLocal();
-    history.replaceState(null, '', `#r=${roomId}&t=${sessionToken}`);
+    // Strip hash after reading so reopening a closed app does not auto-rejoin an old room
+    history.replaceState(null, '', location.pathname);
     SyncEngine.joinChannel(roomId, sessionToken, { isAirplane: false });
     $('joinStatusText').classList.add('hidden');
     closeModal('modalLink');
@@ -5962,7 +6270,11 @@
     if (state.roomId === 'LOCAL') {
       state.roomId = generateRoomCode();
       state.sessionToken = randomHex(16);
+      state.commitSeq = Math.max(1, (state.commitSeq || 0) + 1);
       state.turnSeq = Math.max(1, state.turnSeq + 1);
+      if (getMyClaimedPlayerIndices().length === 0 && state.players[0] && !state.players[0].isAI) {
+        state.players[0].claimedByDeviceId = MY_DEVICE_ID;
+      }
       saveStateLocal();
     }
     try {
@@ -6000,6 +6312,7 @@
       const res = await SyncEngine.acceptAirplaneOffer(clean);
       state.roomId = res.roomId;
       state.sessionToken = res.sessionToken;
+      state.commitSeq = 0;
       state.turnSeq = 0;
       awaitingRoomSync = true;
       saveStateLocal();
@@ -6338,13 +6651,15 @@
     $('btnCreateRoom').addEventListener('click', createLiveRoom);
     $('btnRoomNewGame').addEventListener('click', () => { closeModal('modalLink'); openSetupModal(); });
     $('btnLeaveRoom').addEventListener('click', () => {
-      SyncEngine.disconnect();
+      const humanCount = state.players.filter(p => !p.isAI).length;
+      SyncEngine.disconnect({ announceLeave: true, clearRetained: humanCount <= 2 });
       state.roomId = 'LOCAL';
       state.sessionToken = randomHex(16);
+      state.players.forEach(p => { p.claimedByDeviceId = null; });
       history.replaceState(null, '', location.pathname);
       saveStateLocal();
-      updateSyncModalUI();
-      showToast('Switched to Local play');
+      renderAll();
+      showToast(humanCount <= 2 ? 'Room closed — switched to Local play' : 'Left room — switched to Local play');
     });
     $('btnCopyLink').addEventListener('click', async () => {
       try {
@@ -6441,8 +6756,11 @@
         state = saved;
       } else {
         state = createCanonicalState({ playerNames: ['Player 1', 'Player 2'], mode: '3d', roomId: hashRoom.roomId, sessionToken: hashRoom.sessionToken });
+        state.commitSeq = 0;
         state.turnSeq = 0;
       }
+      saveSessionRoom(hashRoom.roomId, hashRoom.sessionToken);
+      history.replaceState(null, '', location.pathname);
     } else if (saved) {
       state = saved;
     } else {
@@ -6462,9 +6780,15 @@
         state.turnState.diceValues = payload.finalValues.slice();
         if (!wasSnap && isFiveOfKind(payload.finalValues)) {
           SFX.playYachtiFanfare();
-          showToast('🎉 YACHTI! Five of a kind!');
+          const act = state.players[state.activePlayerIndex];
+          const isBonus = act && act.scores.yachti === 50;
+          showToast(isBonus ? '🎉 2nd YACHTI! +100 Bonus — tap highlighted box' : '🎉 YACHTI! Five of a kind!', 3600);
         }
         renderAll();
+        if (isActivePlayerControllableLocally() && isFiveOfKind(payload.finalValues)) {
+          const jokerBtn = document.querySelector('.cell-btn.preview-joker');
+          if (jokerBtn) jokerBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         if (isActivePlayerAI()) {
           const active = state.players[state.activePlayerIndex];
           if (isLocalAiOwner(active)) handleAiAfterRoll(aiRunId);
@@ -6485,7 +6809,37 @@
           showToast('🔗 Another device linked to this room!');
         }
       },
-      getFullState: () => state,
+      onPeerLeft: (leaverId) => {
+        if (!state || state.roomId === 'LOCAL') return;
+        const leavingSeat = state.players.find(p => p.claimedByDeviceId === leaverId);
+        const leaverName = leavingSeat ? leavingSeat.name : 'Other player';
+        const humanCount = state.players.filter(p => !p.isAI).length;
+
+        if (humanCount <= 2) {
+          // 2-player room: closing the app disconnects the room completely so a fresh room is established next time
+          SyncEngine.disconnect({ announceLeave: false, clearRetained: true });
+          state.roomId = 'LOCAL';
+          state.sessionToken = randomHex(16);
+          state.players.forEach(p => { p.claimedByDeviceId = null; });
+          userViewOverride = null;
+          localOverrideActive = false;
+          history.replaceState(null, '', location.pathname);
+          saveStateLocal();
+          renderAll();
+          showToast(`${leaverName} closed the app — room disconnected`, 4200);
+        } else {
+          // 3+ player room: disconnect only the player who left; keep room live for everyone else
+          if (leavingSeat) {
+            leavingSeat.claimedByDeviceId = null;
+            state.commitSeq = (state.commitSeq || 1) + 1;
+            state.turnSeq++;
+            broadcastFullState();
+          }
+          renderAll();
+          showToast(`${leaverName} left the room`, 3200);
+        }
+      },
+      getFullState: () => buildWireState(state),
       onJoinGrantReceived: (roomId, token) => {
         connectToOnlineRoom(roomId, token, true);
       },
@@ -6505,6 +6859,14 @@
       const hr = parseRoomHash();
       if (hr && (!state || state.roomId !== hr.roomId || state.sessionToken !== hr.sessionToken)) {
         connectToOnlineRoom(hr.roomId, hr.sessionToken, true);
+      }
+    });
+
+    // Announce departure when tab/PWA is closed so 2-player rooms close automatically & 3+ rooms release that seat
+    window.addEventListener('pagehide', (ev) => {
+      if (!ev.persisted && state && state.roomId !== 'LOCAL') {
+        const humanCount = state.players.filter(p => !p.isAI).length;
+        SyncEngine.notifyLeaving({ clearRetained: humanCount <= 2 });
       }
     });
 

@@ -1319,7 +1319,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.2.2 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.2.3 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1590,7 +1590,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.2.2';
+  const APP_VERSION = '1.2.3';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const SESSION_ROOM_KEY = 'yachti_v1_room_session';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
@@ -3593,6 +3593,7 @@
       onStatusChange: () => {},
       onPeerConnected: () => {},
       onPeerLeft: () => {},
+      onAirplaneState: () => {},
       getFullState: () => null,
       onJoinGrantReceived: () => {},
       onJoinTimeout: () => {}
@@ -4053,7 +4054,10 @@
       const rec = { pc, dc, airplane: isAirplane, createdAt: Date.now(), lastSeen: Date.now() };
       peers.set(peerId, rec);
       if (dc) {
-        dc.onopen = () => {
+        let openedOnce = false;
+        const handleDcOpen = () => {
+          if (openedOnce) return;
+          openedOnce = true;
           rec.lastSeen = Date.now();
           const wasKnown = knownDevices.has(peerId);
           knownDevices.set(peerId, Date.now());
@@ -4085,6 +4089,7 @@
             });
           }
         };
+        dc.onopen = handleDcOpen;
         dc.onmessage = (ev) => {
           rec.lastSeen = Date.now();
           handleIncomingRaw(ev.data, isAirplane ? 'airplane' : 'webrtc', '');
@@ -4097,8 +4102,19 @@
             schedulePeerLeaveCheck(peerId, isAirplane ? 4000 : 5000, !isAirplane);
           }
         };
+        if (dc.readyState === 'open') {
+          setTimeout(handleDcOpen, 0);
+        }
       }
+      pc.oniceconnectionstatechange = () => {
+        if (isAirplane) {
+          handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
+        }
+      };
       pc.onconnectionstatechange = () => {
+        if (isAirplane) {
+          handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
+        }
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           closePeer(peerId);
           notifyStatus();
@@ -4169,23 +4185,30 @@
         }
       }
       cands.sort((a, b) => {
-        const a4 = /^\d+\.\d+\.\d+\.\d+$/.test(a[0]) ? 0 : 1;
-        const b4 = /^\d+\.\d+\.\d+\.\d+$/.test(b[0]) ? 0 : 1;
-        return (a4 - b4) || (a[2] - b[2]);
+        const rank = (ip) => {
+          if (/^(?:192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(ip)) return 0; // LAN / Hotspot / BT PAN IPv4
+          if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return 1;
+          if (ip.includes(':') && !ip.startsWith('fe80')) return 2;
+          if (ip.endsWith('.local')) return 3;
+          return 4;
+        };
+        return (rank(a[0]) - rank(b[0])) || (a[2] - b[2]);
       });
       const compact = {
         t: desc.type === 'offer' ? 'o' : 'a',
         u, p, f, s,
-        c: cands.slice(0, 4),
+        c: cands.slice(0, 6),
         d: MY_DEVICE_ID.slice(-6)
       };
       if (mid && mid !== '0') compact.m = mid;
       if (meta && meta.r) compact.r = meta.r;
       if (meta && meta.k) compact.k = meta.k;
+      const ips = compact.c.map(c => c[0].endsWith('.local') ? 'mDNS(.local)' : c[0]);
       return {
         code: 'YAIR:' + b64uEncode(JSON.stringify(compact)),
         candCount: compact.c.length,
-        hasIpv4: compact.c.some(c => /^\d+\.\d+\.\d+\.\d+$/.test(c[0]))
+        hasIpv4: compact.c.some(c => /^\d+\.\d+\.\d+\.\d+$/.test(c[0])),
+        ips: Array.from(new Set(ips))
       };
     }
 
@@ -4196,7 +4219,8 @@
       const fp = data.f.match(/.{1,2}/g).join(':').toUpperCase();
       const mid = data.m || '0';
       const candLines = (data.c || []).map((c, idx) => {
-        const typ = c[2] === 1 ? 'srflx' : 'host';
+        const isSrflx = c[2] === 1;
+        const typ = isSrflx ? 'srflx raddr 0.0.0.0 rport 0' : 'host';
         const prio = 2122260223 - idx * 100;
         return `a=candidate:${idx + 1} 1 udp ${prio} ${c[0]} ${c[1]} typ ${typ}`;
       });
@@ -4221,15 +4245,32 @@
         'a=end-of-candidates',
         ''
       ].join('\r\n');
+      const remoteIps = Array.from(new Set((data.c || []).map(c => c[0].endsWith('.local') ? 'mDNS(.local)' : c[0])));
       return {
         desc: { type: data.t === 'o' ? 'offer' : 'answer', sdp },
         roomId: data.r || null,
         sessionToken: data.k || null,
-        remoteShortId: data.d || randomHex(3)
+        remoteShortId: data.d || randomHex(3),
+        remoteIps
       };
     }
 
-    function waitIceGathering(pc, maxMs = 2800) {
+    /**
+     * Briefly invokes getUserMedia() and immediately stops the track so mobile Chrome
+     * reveals real local IPv4 host candidates (e.g., 192.168.x.x) instead of unroutable .local mDNS.
+     */
+    async function unlockLocalIpsViaCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        s.getTracks().forEach(t => t.stop());
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function waitIceGathering(pc, maxMs = 3000) {
       return new Promise((resolve) => {
         if (pc.iceGatheringState === 'complete') return resolve();
         let done = false;
@@ -4248,7 +4289,7 @@
           if (e.candidate) {
             seenCand = true;
             clearTimeout(softTimer);
-            softTimer = setTimeout(finish, 500);
+            softTimer = setTimeout(finish, 600);
           } else if (seenCand) {
             clearTimeout(hardTimer);
             finish();
@@ -4265,6 +4306,15 @@
       airplaneModeActive = true;
       cleanupMqttPool();
 
+      // Unlock raw local IPv4 host candidates before creating the RTCPeerConnection
+      await unlockLocalIpsViaCamera();
+
+      if (airPendingPc) {
+        try { airPendingPc.close(); } catch (_) {}
+        airPendingPc = null;
+        airPendingDc = null;
+      }
+
       const pc = new RTCPeerConnection({ iceServers: [] });
       const dc = pc.createDataChannel('yachti', { ordered: true });
       airPendingPc = pc;
@@ -4272,7 +4322,7 @@
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await waitIceGathering(pc, 2800);
+      await waitIceGathering(pc, 3000);
       return compactSdp(pc.localDescription, { r: roomId, k: sessionToken });
     }
 
@@ -4288,14 +4338,18 @@
       airplaneModeActive = true;
       cleanupMqttPool();
 
+      await unlockLocalIpsViaCamera();
+
       const pc = new RTCPeerConnection({ iceServers: [] });
       const peerId = 'air_host_' + parsed.remoteShortId;
+      pc.oniceconnectionstatechange = () => handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
+      pc.onconnectionstatechange = () => handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
       pc.ondatachannel = (ev) => attachPeer(peerId, pc, ev.channel, true);
 
       await pc.setRemoteDescription(new RTCSessionDescription(parsed.desc));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await waitIceGathering(pc, 2800);
+      await waitIceGathering(pc, 3000);
 
       notifyStatus();
       const packed = compactSdp(pc.localDescription, {});
@@ -4303,6 +4357,8 @@
         answerCode: packed.code,
         candCount: packed.candCount,
         hasIpv4: packed.hasIpv4,
+        ips: packed.ips,
+        remoteIps: parsed.remoteIps,
         roomId: activeRoomId,
         sessionToken: activeToken
       };
@@ -4320,6 +4376,7 @@
       attachPeer(peerId, pc, dc, true);
       await pc.setRemoteDescription(new RTCSessionDescription(parsed.desc));
       notifyStatus();
+      return { remoteIps: parsed.remoteIps };
     }
 
     // ---- Packet Validation & Dispatch ----
@@ -6560,7 +6617,7 @@
   async function startAirplaneHost() {
     $('airGuestBox').classList.add('hidden');
     $('airHostBox').classList.remove('hidden');
-    $('airStatusText').textContent = 'Gathering local Bluetooth PAN / Hotspot address…';
+    $('airStatusText').textContent = 'Unlocking local IP & gathering Bluetooth PAN / Hotspot address…';
 
     if (state.roomId === 'LOCAL') {
       prepareBlankHostedRoomState(generateRoomCode(), randomHex(16));
@@ -6569,12 +6626,13 @@
       const packed = await SyncEngine.createAirplaneOffer(state.roomId, state.sessionToken);
       lastAirOfferCode = packed.code;
       QRCodeGen.renderToCanvas($('airOfferQr'), packed.code);
+      const ipInfo = packed.ips && packed.ips.length ? packed.ips.join(', ') : 'none';
       if (packed.candCount === 0) {
-        $('airStatusText').textContent = '⚠️ No local network address found — turn on Bluetooth Tethering or Hotspot, then tap Host again.';
+        $('airStatusText').textContent = '⚠️ 0 local addresses found — turn on Offline Wi-Fi Hotspot (mobile data off) or Bluetooth Tethering, then tap Host again.';
       } else if (!packed.hasIpv4) {
-        $('airStatusText').textContent = 'Offer QR ready! Tip: if pairing stalls, enable Hotspot and grant camera permission.';
+        $('airStatusText').textContent = `Offer QR ready (${ipInfo}). ⚠️ No IPv4 seen — try Offline Wi-Fi Hotspot (mobile data off) if link stalls.`;
       } else {
-        $('airStatusText').textContent = 'Offer QR ready! Have Guest scan it, then tap Step 2 to scan their Answer.';
+        $('airStatusText').textContent = `Offer QR ready (Host IP: ${ipInfo}) — Guest scans now, then tap Step 2.`;
       }
     } catch (err) {
       $('airStatusText').textContent = 'Could not create Airplane Offer: ' + err.message;
@@ -6608,9 +6666,13 @@
       QRCodeGen.renderToCanvas($('airAnswerQr'), res.answerCode);
       $('airGuestStep1').classList.add('hidden');
       $('airGuestStep2').classList.remove('hidden');
-      $('airStatusText').textContent = res.candCount === 0
-        ? '⚠️ No local link detected — check Bluetooth Tethering / Hotspot.'
-        : 'Answer QR ready! Let Host scan this to complete the link.';
+      const myIps = res.ips && res.ips.length ? res.ips.join(', ') : 'none';
+      const hostIps = res.remoteIps && res.remoteIps.length ? res.remoteIps.join(', ') : 'none';
+      if (res.candCount === 0) {
+        $('airStatusText').textContent = `⚠️ 0 local addresses on this phone (Host: ${hostIps}) — check Hotspot / Bluetooth Tethering.`;
+      } else {
+        $('airStatusText').textContent = `Answer QR ready (Guest: ${myIps} ↔ Host: ${hostIps}) — Host scans now.`;
+      }
     } catch (err) {
       $('airStatusText').textContent = 'Offer error: ' + err.message;
       showToast('Could not parse Offer code');
@@ -6625,8 +6687,9 @@
     }
     $('airStatusText').textContent = 'Connecting direct P2P channel…';
     try {
-      await SyncEngine.completeAirplaneHost(clean);
-      $('airStatusText').textContent = '✈️ Handshake sent — locking direct P2P channel…';
+      const res = await SyncEngine.completeAirplaneHost(clean);
+      const guestIps = res && res.remoteIps && res.remoteIps.length ? res.remoteIps.join(', ') : 'none';
+      $('airStatusText').textContent = `✈️ Connecting to Guest (${guestIps})…`;
       showToast('✈️ Airplane P2P handshake sent!');
     } catch (err) {
       $('airStatusText').textContent = 'Answer error: ' + err.message;
@@ -7150,6 +7213,17 @@
         } else {
           showToast(isAir ? '✈️ Airplane P2P linked!' : '🔗 Another player connected to this room!', 3000);
           if (isAir && !awaitingRoomSync) closeModal('modalLink');
+        }
+      },
+      onAirplaneState: (iceState, connState) => {
+        const el = $('airStatusText');
+        if (!el) return;
+        if (iceState === 'connected' || iceState === 'completed' || connState === 'connected') {
+          el.textContent = '✈️ Direct P2P link locked in — syncing game…';
+        } else if (iceState === 'failed' || connState === 'failed') {
+          el.textContent = '❌ Direct link blocked on this network — switch to Offline Wi-Fi Hotspot (mobile data off) and retry.';
+        } else if (iceState === 'checking') {
+          el.textContent = '✈️ Testing direct local P2P route (ICE checking)…';
         }
       },
       onPeerLeft: (leaverId) => {

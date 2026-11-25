@@ -4,7 +4,7 @@
 
 ## What You Can Do
 
-- **Play with 3D Dice or Real Dice:** Roll five top-down 3D dice on screen (solo, pass-and-play on one phone, or linked across up to 6 phones), or switch to **Digital Scorecard Mode** when you are rolling real dice on the table.
+- **Play with 3D Dice, vs. Computer, or Real Dice:** Roll five top-down 3D dice on screen (solo, **2-player vs. Computer** with Casual/Pro AI, pass-and-play on one phone, or linked across up to 6 phones), or switch to **Digital Scorecard Mode** when you are rolling real dice on the table.
 - **Drag Dice to the Side to Keep Them:** Between rolls, drag any die into the right-hand **Reserve Bar** (or tap it to slide it across) so your kept dice stay clearly readable while you roll the rest.
 - **No-Mistake Scorecard:** On your turn, your screen focuses cleanly on your own score column and previews every legal score — including the 63-point Upper Bonus pace, +100 Yachti Bonuses, and the official Joker Rule. Tap once to score, or hit **Undo** if your thumb slips.
 - **Link Phones in Seconds:** Share a **4-letter Room Code**, tap **Copy / Share Link**, or point a phone camera at the built-in **QR Code**. Everyone sees rolls, kept dice, and scores update live.
@@ -28,7 +28,7 @@ Once installed, Yachti launches full-screen and works completely offline.
 
 ---
 
-## Technical Architecture (v1.0.0)
+## Technical Architecture (v1.1.0)
 
 - **Zero External Dependencies:** Single-file static application (`index.html`) with built-in 3D projected dice renderer, Web Audio API sound synthesizer, ISO/IEC 18004 QR code encoder, and camera QR scanner (`BarcodeDetector` with manual paste fallback).
 - **Deterministic Roll Sync:** Active devices broadcast a compact `ROLL_START` payload (`rollId`, `turnSeq`, `rollNumber`, `seed`, `heldMask`, `initialImpulses`, `finalValues`, `startedAt`) so linked devices animate the same trajectory and converge identically.

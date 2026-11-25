@@ -261,6 +261,11 @@
     color: var(--sky);
   }
 
+  .turn-badge.ai-turn {
+    background: rgba(52, 211, 153, 0.18);
+    color: var(--green-ok);
+  }
+
   .turn-player-name {
     font-weight: 700;
     color: var(--text-main);
@@ -1244,7 +1249,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.0.1 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.1.0 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1265,7 +1270,21 @@
           <button id="setupModeCard" class="seg-btn">📋 Digital Scorecard</button>
         </div>
       </div>
-      <div>
+      <div id="setupOpponentWrap">
+        <span class="field-label">Opponent</span>
+        <div class="seg-group">
+          <button id="setupOppHuman" class="seg-btn active">👥 Human (1–6)</button>
+          <button id="setupOppAi" class="seg-btn">🤖 vs Computer (2P)</button>
+        </div>
+      </div>
+      <div id="setupAiLevelWrap" class="hidden">
+        <span class="field-label">Computer Skill</span>
+        <div class="seg-group">
+          <button id="setupAiCasual" class="seg-btn">🙂 Casual</button>
+          <button id="setupAiPro" class="seg-btn active">🧠 Pro</button>
+        </div>
+      </div>
+      <div id="setupCountWrap">
         <span class="field-label">Players (1–6)</span>
         <div id="setupCountPills" class="count-pills"></div>
       </div>
@@ -1492,7 +1511,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.0.1';
+  const APP_VERSION = '1.1.0';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
   const STORAGE_PREFS_KEY = 'yachti_v1_prefs';
@@ -1556,12 +1575,16 @@
     };
   }
 
-  function createPlayer(idx, name, claimedByDeviceId = null) {
+  function createPlayer(idx, name, claimedByDeviceId = null, aiConfig = null) {
+    const isAI = !!(aiConfig && aiConfig.isAI);
     return {
       id: 'p_' + randomHex(4),
-      name: (name && name.trim()) ? name.trim().slice(0, 18) : `Player ${idx + 1}`,
+      name: (name && name.trim()) ? name.trim().slice(0, 18) : (isAI ? 'Yachti Bot' : `Player ${idx + 1}`),
       nameUpdatedAt: Date.now(),
-      claimedByDeviceId,
+      claimedByDeviceId: isAI ? null : claimedByDeviceId,
+      isAI,
+      aiLevel: isAI ? (aiConfig.aiLevel === 'casual' ? 'casual' : 'pro') : null,
+      aiOwnerDeviceId: isAI ? (aiConfig.aiOwnerDeviceId || MY_DEVICE_ID) : null,
       scores: emptyScores(),
       yachtiBonuses: 0
     };
@@ -1577,11 +1600,16 @@
     };
   }
 
-  function createCanonicalState({ playerNames = ['Player 1', 'Player 2'], mode = '3d', roomId = 'LOCAL', sessionToken = null } = {}) {
-    const count = Math.max(1, Math.min(MAX_PLAYERS, playerNames.length));
+  function createCanonicalState({ playerNames = ['Player 1', 'Player 2'], mode = '3d', roomId = 'LOCAL', sessionToken = null, vsComputer = false, aiLevel = 'pro' } = {}) {
+    const useAi = vsComputer && mode !== 'scorecard';
+    const count = useAi ? 2 : Math.max(1, Math.min(MAX_PLAYERS, playerNames.length));
     const players = [];
     for (let i = 0; i < count; i++) {
-      players.push(createPlayer(i, playerNames[i], null));
+      if (useAi && i === 1) {
+        players.push(createPlayer(i, playerNames[i] || 'Yachti Bot', null, { isAI: true, aiLevel, aiOwnerDeviceId: MY_DEVICE_ID }));
+      } else {
+        players.push(createPlayer(i, playerNames[i], null));
+      }
     }
     return {
       version: 1,
@@ -4187,6 +4215,246 @@
     };
   })();
 
+
+  /* ============================================================================
+   * MODULE 5B: YACHTI AI ENGINE (EXACT MULTISET EV + JOKER-COMPLIANT STRATEGY)
+   * ============================================================================ */
+  const YachtiAI = (() => {
+    const FACT = [1, 1, 2, 6, 24, 120];
+    const CAT_BASE_COST = {
+      ones: 2.0, twos: 4.5, threes: 7.5, fours: 10.5, fives: 13.5, sixes: 16.5,
+      threeKind: 15.0, fourKind: 11.0, fullHouse: 15.5,
+      smallStraight: 19.0, largeStraight: 15.0, yachti: 8.5, chance: 21.5
+    };
+
+    // Precompute unordered weighted multisets for k = 0..5 rerolled dice (1,683 total evals across 32 masks)
+    const MULTISETS = [];
+    for (let k = 0; k <= 5; k++) {
+      const list = [];
+      const denom = Math.pow(6, k);
+      const cur = [];
+      const gen = (startFace, left) => {
+        if (left === 0) {
+          const counts = [0, 0, 0, 0, 0, 0, 0];
+          for (let i = 0; i < cur.length; i++) counts[cur[i]]++;
+          let ways = FACT[k];
+          for (let f = 1; f <= 6; f++) ways /= FACT[counts[f]];
+          list.push({ faces: cur.slice(), prob: ways / denom });
+          return;
+        }
+        for (let f = startFace; f <= 6; f++) {
+          cur.push(f);
+          gen(f, left - 1);
+          cur.pop();
+        }
+      };
+      gen(1, k);
+      MULTISETS.push(list);
+    }
+
+    function fastStandardScore(cat, counts, total) {
+      switch (cat) {
+        case 'ones': return counts[1];
+        case 'twos': return counts[2] * 2;
+        case 'threes': return counts[3] * 3;
+        case 'fours': return counts[4] * 4;
+        case 'fives': return counts[5] * 5;
+        case 'sixes': return counts[6] * 6;
+        case 'threeKind':
+          for (let f = 1; f <= 6; f++) if (counts[f] >= 3) return total;
+          return 0;
+        case 'fourKind':
+          for (let f = 1; f <= 6; f++) if (counts[f] >= 4) return total;
+          return 0;
+        case 'fullHouse': {
+          let h3 = false, h2 = false;
+          for (let f = 1; f <= 6; f++) { if (counts[f] === 3) h3 = true; if (counts[f] === 2) h2 = true; }
+          return (h3 && h2) ? 25 : 0;
+        }
+        case 'smallStraight':
+          return ((counts[1] && counts[2] && counts[3] && counts[4]) ||
+                  (counts[2] && counts[3] && counts[4] && counts[5]) ||
+                  (counts[3] && counts[4] && counts[5] && counts[6])) ? 30 : 0;
+        case 'largeStraight':
+          return ((counts[1] && counts[2] && counts[3] && counts[4] && counts[5]) ||
+                  (counts[2] && counts[3] && counts[4] && counts[5] && counts[6])) ? 40 : 0;
+        case 'yachti':
+          for (let f = 1; f <= 6; f++) if (counts[f] === 5) return 50;
+          return 0;
+        case 'chance':
+          return total;
+        default:
+          return 0;
+      }
+    }
+
+    function strategicValue(upperSub, upperMaxRem, catKey, pts, grantsBonus) {
+      let val = pts + (grantsBonus ? 100.0 : 0.0) - CAT_BASE_COST[catKey];
+      const upperIdx = UPPER_KEYS.indexOf(catKey);
+      if (upperIdx >= 0) {
+        const face = upperIdx + 1;
+        const par = face * 3;
+        if (upperSub < 63 && (upperSub + upperMaxRem >= 63)) {
+          if (upperSub + pts >= 63) {
+            val += 35.0;
+          } else {
+            val += (pts - par) * 1.45;
+            if (pts === 0) val -= face * 1.2;
+          }
+        }
+      } else if (catKey === 'yachti' && pts === 50) {
+        val += 28.0;
+      } else if (catKey === 'chance' && pts < 19) {
+        val -= (19 - pts) * 0.6;
+      } else if (catKey === 'largeStraight' && pts === 40) {
+        val += 6.0;
+      }
+      return val;
+    }
+
+    function bestImmediateForCounts(scores, upperSub, upperMaxRem, counts, total) {
+      let fiveFace = 0;
+      for (let f = 1; f <= 6; f++) { if (counts[f] === 5) { fiveFace = f; break; } }
+      const yachtiFilled = scores.yachti !== null;
+      const grantsBonus = fiveFace > 0 && scores.yachti === 50;
+      const joker = fiveFace > 0 && yachtiFilled;
+
+      let bestV = -1e9;
+      if (!joker) {
+        for (let i = 0; i < ALL_CATS.length; i++) {
+          const key = ALL_CATS[i].key;
+          if (scores[key] !== null) continue;
+          const pts = fastStandardScore(key, counts, total);
+          const v = strategicValue(upperSub, upperMaxRem, key, pts, false);
+          if (v > bestV) bestV = v;
+        }
+        return bestV;
+      }
+
+      const matchKey = UPPER_KEYS[fiveFace - 1];
+      if (scores[matchKey] === null) {
+        return strategicValue(upperSub, upperMaxRem, matchKey, total, grantsBonus);
+      }
+      let anyLower = false;
+      for (let i = 0; i < LOWER_KEYS.length; i++) {
+        const key = LOWER_KEYS[i];
+        if (scores[key] !== null) continue;
+        anyLower = true;
+        const pts = key === 'fullHouse' ? 25 : (key === 'smallStraight' ? 30 : (key === 'largeStraight' ? 40 : total));
+        const v = strategicValue(upperSub, upperMaxRem, key, pts, grantsBonus);
+        if (v > bestV) bestV = v;
+      }
+      if (anyLower) return bestV;
+
+      for (let i = 0; i < UPPER_KEYS.length; i++) {
+        const key = UPPER_KEYS[i];
+        if (scores[key] !== null) continue;
+        const v = strategicValue(upperSub, upperMaxRem, key, 0, grantsBonus);
+        if (v > bestV) bestV = v;
+      }
+      return bestV;
+    }
+
+    function upperStats(scores) {
+      let upperSub = 0, upperMaxRem = 0;
+      for (let i = 0; i < UPPER_KEYS.length; i++) {
+        const v = scores[UPPER_KEYS[i]];
+        if (v !== null) upperSub += v;
+        else upperMaxRem += (i + 1) * 5;
+      }
+      return { upperSub, upperMaxRem };
+    }
+
+    function chooseBestCategory(player, diceValues, level = 'pro') {
+      const evalRes = evaluateTurnOptions(player, diceValues);
+      const { upperSub, upperMaxRem } = upperStats(player.scores);
+      let bestPick = null;
+      let bestVal = -1e9;
+      for (const cat of ALL_CATS) {
+        const opt = evalRes.options[cat.key];
+        if (!opt || !opt.legal) continue;
+        let v = strategicValue(upperSub, upperMaxRem, cat.key, opt.score, opt.grantsBonus);
+        if (level === 'casual' && !(cat.key === 'yachti' && opt.score === 50) && !opt.grantsBonus) {
+          v += (Math.random() * 2 - 1) * 5.5;
+        }
+        if (v > bestVal) {
+          bestVal = v;
+          bestPick = { catKey: cat.key, label: cat.label, score: opt.score, grantsBonus: opt.grantsBonus };
+        }
+      }
+      return bestPick;
+    }
+
+    function decideAfterRoll(player, diceValues, rollsLeft, level = 'pro') {
+      if (rollsLeft <= 0) {
+        return { action: 'score', pick: chooseBestCategory(player, diceValues, level) };
+      }
+
+      const { upperSub, upperMaxRem } = upperStats(player.scores);
+      const seenKept = new Map();
+      let bestMask = 31;
+      let bestEv = -1e9;
+
+      for (let mask = 0; mask < 32; mask++) {
+        const kept = [];
+        for (let i = 0; i < 5; i++) {
+          if ((mask >> i) & 1) kept.push(diceValues[i]);
+        }
+        kept.sort((a, b) => a - b);
+        const key = kept.join('');
+        let ev;
+        if (seenKept.has(key)) {
+          ev = seenKept.get(key);
+        } else {
+          const kReroll = 5 - kept.length;
+          const baseCounts = [0, 0, 0, 0, 0, 0, 0];
+          let baseSum = 0;
+          for (let i = 0; i < kept.length; i++) {
+            baseCounts[kept[i]]++;
+            baseSum += kept[i];
+          }
+          if (kReroll === 0) {
+            ev = bestImmediateForCounts(player.scores, upperSub, upperMaxRem, baseCounts, baseSum) + 0.35;
+          } else {
+            ev = 0;
+            const ms = MULTISETS[kReroll];
+            for (let m = 0; m < ms.length; m++) {
+              const faces = ms[m].faces;
+              let tot = baseSum;
+              for (let j = 0; j < faces.length; j++) {
+                baseCounts[faces[j]]++;
+                tot += faces[j];
+              }
+              ev += ms[m].prob * bestImmediateForCounts(player.scores, upperSub, upperMaxRem, baseCounts, tot);
+              for (let j = 0; j < faces.length; j++) {
+                baseCounts[faces[j]]--;
+              }
+            }
+            if (rollsLeft >= 2) {
+              ev += 1.6 + 0.35 * kReroll;
+            }
+          }
+          seenKept.set(key, ev);
+        }
+
+        const adjEv = level === 'casual' ? ev + (Math.random() * 2 - 1) * 7.0 : ev;
+        if (adjEv > bestEv) {
+          bestEv = adjEv;
+          bestMask = mask;
+        }
+      }
+
+      if (bestMask === 31) {
+        return { action: 'score', pick: chooseBestCategory(player, diceValues, level) };
+      }
+      const heldMask = [false, false, false, false, false];
+      for (let i = 0; i < 5; i++) heldMask[i] = !!((bestMask >> i) & 1);
+      return { action: 'roll', heldMask };
+    }
+
+    return { decideAfterRoll, chooseBestCategory };
+  })();
+
   /* ============================================================================
    * MODULE 6: UI CONTROLLER, FOCUS-AWARE SCORECARD, VIEWPORT CONTAINMENT & PWA
    * ============================================================================ */
@@ -4205,8 +4473,35 @@
   let lastAirOfferCode = '';
   let lastAirAnswerCode = '';
 
-  // Setup modal temporary selections
-  let setupDraft = { mode: '3d', count: 2, names: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'] };
+  // Setup modal temporary selections & AI turn runner
+  let setupDraft = { mode: '3d', vsComputer: false, aiLevel: 'pro', aiName: 'Yachti Bot', count: 2, names: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'] };
+  let aiRunId = 0;
+  let aiTimers = [];
+
+  function cancelAiTurn() {
+    aiRunId++;
+    for (const tid of aiTimers) clearTimeout(tid);
+    aiTimers = [];
+  }
+
+  function queueAiStep(runId, delayMs, fn) {
+    const tid = setTimeout(() => {
+      if (runId !== aiRunId) return;
+      fn();
+    }, delayMs);
+    aiTimers.push(tid);
+  }
+
+  function isActivePlayerAI() {
+    if (!state || state.gameStatus !== 'active') return false;
+    const active = state.players[state.activePlayerIndex];
+    return !!(active && active.isAI);
+  }
+
+  function isLocalAiOwner(player) {
+    if (!player || !player.isAI) return false;
+    return !player.aiOwnerDeviceId || player.aiOwnerDeviceId === MY_DEVICE_ID;
+  }
 
   // ---- Viewport Containment (window.visualViewport / 100dvh) ----
   function syncViewportVars() {
@@ -4319,6 +4614,7 @@
     if (!state || state.gameStatus !== 'active') return false;
     const active = state.players[state.activePlayerIndex];
     if (!active) return false;
+    if (active.isAI) return false;
     if (localOverrideActive) return true;
     // Mixed-device rule: seats claimed by ME or unclaimed (null) are controllable locally
     if (active.claimedByDeviceId === MY_DEVICE_ID) return true;
@@ -4391,8 +4687,10 @@
       DiceEngine.syncFromState(state.turnState, !heldChanged);
     }
 
+    cancelAiTurn();
     renderAll();
     if (state.gameStatus === 'finished') openFinishModal();
+    else scheduleAiTurnIfNeeded();
     return true;
   }
 
@@ -4403,22 +4701,15 @@
   }
 
   // ---- Core Gameplay Actions ----
-  function triggerRoll() {
-    if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return;
-    if (!isActivePlayerControllableLocally()) {
-      showToast(`Waiting for ${state.players[state.activePlayerIndex].name}`);
-      return;
-    }
-    if (DiceEngine.isAnimating() || state.turnState.rollNumber >= 3) return;
+  function executeRollInternal() {
+    if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return false;
+    if (DiceEngine.isAnimating() || state.turnState.rollNumber >= 3) return false;
 
     // On Roll 1, always roll all 5 dice (reset holds)
     if (state.turnState.rollNumber === 0) {
       state.turnState.heldMask = [false, false, false, false, false];
     }
-    if (state.turnState.heldMask.every(Boolean)) {
-      showToast('Release at least one die to roll again');
-      return;
-    }
+    if (state.turnState.heldMask.every(Boolean)) return false;
 
     const nextRollNum = state.turnState.rollNumber + 1;
     state.turnSeq++;
@@ -4439,6 +4730,88 @@
     SyncEngine.sendPacket({ type: 'ROLL_START', payload, activePlayerIndex: state.activePlayerIndex });
     DiceEngine.playRollPayload(payload);
     renderHUDAndControls();
+    return true;
+  }
+
+  function triggerRoll() {
+    if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return;
+    if (!isActivePlayerControllableLocally()) {
+      const act = state.players[state.activePlayerIndex];
+      showToast(act && act.isAI ? `${act.name} is taking its turn…` : `Waiting for ${act ? act.name : 'player'}`);
+      return;
+    }
+    if (state.turnState.rollNumber > 0 && state.turnState.heldMask.every(Boolean)) {
+      showToast('Release at least one die to roll again');
+      return;
+    }
+    executeRollInternal();
+  }
+
+  // ---- Automated Computer Opponent Turn Runner ----
+  function scheduleAiTurnIfNeeded() {
+    if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return;
+    const active = state.players[state.activePlayerIndex];
+    if (!active || !active.isAI || !isLocalAiOwner(active)) return;
+    if (DiceEngine.isAnimating()) return;
+
+    cancelAiTurn();
+    const runId = aiRunId;
+
+    if (state.turnState.rollNumber === 0) {
+      queueAiStep(runId, 520, () => {
+        if (!isActivePlayerAI() || state.turnState.rollNumber !== 0) return;
+        executeRollInternal();
+      });
+    } else {
+      handleAiAfterRoll(runId);
+    }
+  }
+
+  function handleAiAfterRoll(runId) {
+    if (runId !== aiRunId) return;
+    if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return;
+    const activeIdx = state.activePlayerIndex;
+    const active = state.players[activeIdx];
+    if (!active || !active.isAI || !isLocalAiOwner(active)) return;
+
+    const rollsLeft = 3 - state.turnState.rollNumber;
+    const decision = YachtiAI.decideAfterRoll(active, state.turnState.diceValues, rollsLeft, active.aiLevel || 'pro');
+
+    if (decision.action === 'score' || !decision.heldMask) {
+      const pick = decision.pick || YachtiAI.chooseBestCategory(active, state.turnState.diceValues, active.aiLevel || 'pro');
+      if (!pick) return;
+      queueAiStep(runId, 760, () => {
+        if (state.activePlayerIndex !== activeIdx || state.gameStatus !== 'active') return;
+        const bonusTxt = pick.grantsBonus ? ' (+100 Bonus!)' : '';
+        showToast(`🤖 ${active.name} scored ${pick.score} in ${pick.label}${bonusTxt}`, 2600);
+        commitScore(activeIdx, pick.catKey, pick.score, { grantYachtiBonus: pick.grantsBonus });
+      });
+      return;
+    }
+
+    // Smoothly slide each changed die into/out of the Reserve Bar so the player sees what the bot keeps
+    const targetMask = decision.heldMask;
+    const diffs = [];
+    for (let i = 0; i < 5; i++) {
+      if (!!state.turnState.heldMask[i] !== !!targetMask[i]) {
+        diffs.push({ idx: i, held: !!targetMask[i] });
+      }
+    }
+
+    let delay = 360;
+    diffs.forEach((step) => {
+      queueAiStep(runId, delay, () => {
+        if (state.activePlayerIndex !== activeIdx || state.gameStatus !== 'active') return;
+        DiceEngine.animateSlide(step.idx, step.held);
+        handleHoldMove(step.idx, step.held);
+      });
+      delay += 195;
+    });
+
+    queueAiStep(runId, delay + 380, () => {
+      if (state.activePlayerIndex !== activeIdx || state.gameStatus !== 'active') return;
+      executeRollInternal();
+    });
   }
 
   function handleHoldMove(dieIdx, isHeld) {
@@ -4535,6 +4908,7 @@
     broadcastFullState();
     DiceEngine.syncFromState(state.turnState, true);
     renderAll();
+    scheduleAiTurnIfNeeded();
   }
 
   function addManualYachtiBonus(playerIndex) {
@@ -4563,7 +4937,13 @@
 
   function triggerUndo() {
     if (!state || !state.undoStack || state.undoStack.length === 0) return;
-    const snap = state.undoStack.pop();
+    cancelAiTurn();
+    let snap = state.undoStack.pop();
+    // In vs-Computer games, if the latest commit was the Computer's turn, step back to the human's turn so the player can fix their move cleanly
+    const snapPlayer = snap.playersSnapshot && snap.playersSnapshot[snap.activePlayerIndex];
+    if (snapPlayer && snapPlayer.isAI && state.undoStack.length > 0) {
+      snap = state.undoStack.pop();
+    }
     state.players = deepClone(snap.playersSnapshot);
     state.turnState = deepClone(snap.turnStateSnapshot);
     state.turnState.animating = false;
@@ -4579,15 +4959,20 @@
     DiceEngine.syncFromState(state.turnState, true);
     renderAll();
     showToast('Last score undone');
+    scheduleAiTurnIfNeeded();
   }
 
   function playAgainSamePlayers() {
     if (!state) return;
+    cancelAiTurn();
     const keptPlayers = state.players.map(p => ({
       id: p.id,
       name: p.name,
       nameUpdatedAt: p.nameUpdatedAt || Date.now(),
       claimedByDeviceId: p.claimedByDeviceId,
+      isAI: !!p.isAI,
+      aiLevel: p.isAI ? (p.aiLevel || 'pro') : null,
+      aiOwnerDeviceId: p.isAI ? (p.aiOwnerDeviceId || MY_DEVICE_ID) : null,
       scores: emptyScores(),
       yachtiBonuses: 0
     }));
@@ -4604,7 +4989,8 @@
     broadcastFullState();
     DiceEngine.syncFromState(state.turnState, true);
     renderAll();
-    showToast('New game started — room stays linked!');
+    showToast(state.roomId !== 'LOCAL' ? 'New game started — room stays linked!' : 'New game started!');
+    scheduleAiTurnIfNeeded();
   }
 
   // ---- Incoming Sync Packet Handler ----
@@ -4694,9 +5080,13 @@
 
     // Turn strip
     const badge = $('turnBadge');
+    const isAiTurn = !!(active && active.isAI);
     if (state.gameStatus === 'finished') {
       badge.textContent = 'Finished';
       badge.className = 'turn-badge';
+    } else if (isAiTurn) {
+      badge.textContent = active.aiLevel === 'casual' ? '🤖 Casual Bot' : '🤖 Pro Bot';
+      badge.className = 'turn-badge ai-turn';
     } else if (canAct) {
       badge.textContent = localOverrideActive ? 'Override' : 'Your Turn';
       badge.className = 'turn-badge';
@@ -4707,9 +5097,9 @@
     $('turnPlayerName').textContent = active ? active.name : '';
     $('roundLabel').textContent = `Round ${state.roundNumber}/13`;
 
-    // Stall-proof override button when watching a remote player's turn
+    // Stall-proof override button when watching a remote human player's turn (not needed on Computer turns)
     const ovBtn = $('btnOverride');
-    if (state.gameStatus === 'active' && !canAct) {
+    if (state.gameStatus === 'active' && !canAct && !isAiTurn) {
       ovBtn.classList.remove('hidden');
       ovBtn.textContent = `Roll / Score for ${active.name}`;
     } else {
@@ -4735,7 +5125,11 @@
       relBtn.classList.add('hidden');
     } else if (!canAct) {
       btnRoll.disabled = true;
-      rollLbl.textContent = anim ? `${active.name} rolling…` : `Waiting for ${active.name}…`;
+      if (isAiTurn) {
+        rollLbl.textContent = anim ? `🤖 ${active.name} rolling…` : `🤖 ${active.name} thinking…`;
+      } else {
+        rollLbl.textContent = anim ? `${active.name} rolling…` : `Waiting for ${active.name}…`;
+      }
       hint.classList.add('hidden');
       relBtn.classList.add('hidden');
     } else if (anim) {
@@ -4990,16 +5384,35 @@
   function openSetupModal() {
     if (state) {
       setupDraft.mode = state.mode;
+      const aiP = state.players.find(p => p.isAI);
+      setupDraft.vsComputer = !!(aiP && state.mode === '3d' && state.players.length === 2);
+      if (aiP) {
+        setupDraft.aiLevel = aiP.aiLevel || 'pro';
+        setupDraft.aiName = aiP.name || 'Yachti Bot';
+      }
       setupDraft.count = state.players.length;
-      state.players.forEach((p, i) => { setupDraft.names[i] = p.name; });
+      state.players.forEach((p, i) => {
+        if (!p.isAI) setupDraft.names[i] = p.name;
+      });
     }
     renderSetupModal();
     openModal('modalSetup');
   }
 
   function renderSetupModal() {
-    $('setupMode3d').classList.toggle('active', setupDraft.mode === '3d');
-    $('setupModeCard').classList.toggle('active', setupDraft.mode === 'scorecard');
+    const is3d = setupDraft.mode === '3d';
+    if (!is3d) setupDraft.vsComputer = false;
+    const isAi = is3d && setupDraft.vsComputer;
+
+    $('setupMode3d').classList.toggle('active', is3d);
+    $('setupModeCard').classList.toggle('active', !is3d);
+    $('setupOpponentWrap').classList.toggle('hidden', !is3d);
+    $('setupOppHuman').classList.toggle('active', !isAi);
+    $('setupOppAi').classList.toggle('active', isAi);
+    $('setupAiLevelWrap').classList.toggle('hidden', !isAi);
+    $('setupAiCasual').classList.toggle('active', setupDraft.aiLevel === 'casual');
+    $('setupAiPro').classList.toggle('active', setupDraft.aiLevel !== 'casual');
+    $('setupCountWrap').classList.toggle('hidden', isAi);
 
     const pills = $('setupCountPills');
     pills.innerHTML = '';
@@ -5013,29 +5426,61 @@
 
     const grid = $('setupNameInputs');
     grid.innerHTML = '';
-    for (let i = 0; i < setupDraft.count; i++) {
-      const inp = document.createElement('input');
-      inp.className = 'text-input';
-      inp.maxLength = 18;
-      inp.value = setupDraft.names[i] || `Player ${i + 1}`;
-      inp.placeholder = `Player ${i + 1}`;
-      inp.oninput = (e) => { setupDraft.names[i] = e.target.value; };
-      grid.appendChild(inp);
+    if (isAi) {
+      const p1 = document.createElement('input');
+      p1.className = 'text-input';
+      p1.maxLength = 18;
+      p1.value = setupDraft.names[0] || 'Player 1';
+      p1.placeholder = 'Your Name';
+      p1.oninput = (e) => { setupDraft.names[0] = e.target.value; };
+
+      const p2 = document.createElement('input');
+      p2.className = 'text-input';
+      p2.maxLength = 18;
+      p2.value = setupDraft.aiName || 'Yachti Bot';
+      p2.placeholder = 'Yachti Bot';
+      p2.oninput = (e) => { setupDraft.aiName = e.target.value; };
+
+      grid.append(p1, p2);
+    } else {
+      for (let i = 0; i < setupDraft.count; i++) {
+        const inp = document.createElement('input');
+        inp.className = 'text-input';
+        inp.maxLength = 18;
+        inp.value = setupDraft.names[i] || `Player ${i + 1}`;
+        inp.placeholder = `Player ${i + 1}`;
+        inp.oninput = (e) => { setupDraft.names[i] = e.target.value; };
+        grid.appendChild(inp);
+      }
     }
   }
 
   function applySetupNewGame() {
+    cancelAiTurn();
+    const isAi = setupDraft.mode === '3d' && setupDraft.vsComputer;
     const names = [];
-    for (let i = 0; i < setupDraft.count; i++) {
-      const nm = (setupDraft.names[i] || '').trim();
-      names.push(nm || `Player ${i + 1}`);
+    if (isAi) {
+      names.push((setupDraft.names[0] || '').trim() || 'Player 1');
+      names.push((setupDraft.aiName || '').trim() || 'Yachti Bot');
+    } else {
+      for (let i = 0; i < setupDraft.count; i++) {
+        const nm = (setupDraft.names[i] || '').trim();
+        names.push(nm || `Player ${i + 1}`);
+      }
     }
     const keepRoom = state && state.roomId !== 'LOCAL';
     const nextRoomId = keepRoom ? state.roomId : 'LOCAL';
     const nextToken = keepRoom ? state.sessionToken : null;
     const prevSeq = state ? state.turnSeq : 0;
 
-    state = createCanonicalState({ playerNames: names, mode: setupDraft.mode, roomId: nextRoomId, sessionToken: nextToken });
+    state = createCanonicalState({
+      playerNames: names,
+      mode: setupDraft.mode,
+      roomId: nextRoomId,
+      sessionToken: nextToken,
+      vsComputer: isAi,
+      aiLevel: setupDraft.aiLevel
+    });
     state.turnSeq = prevSeq + 1;
     userViewOverride = null;
     localOverrideActive = false;
@@ -5045,7 +5490,12 @@
     DiceEngine.computeLayout();
     DiceEngine.syncFromState(state.turnState, true);
     renderAll();
-    showToast(`Started ${setupDraft.mode === '3d' ? '3D Yachti' : 'Digital Scorecard'} (${names.length}P)`);
+    if (isAi) {
+      showToast(`Started 2P vs ${names[1]} (${setupDraft.aiLevel === 'casual' ? 'Casual' : 'Pro'})`);
+    } else {
+      showToast(`Started ${setupDraft.mode === '3d' ? '3D Yachti' : 'Digital Scorecard'} (${names.length}P)`);
+    }
+    scheduleAiTurnIfNeeded();
   }
 
   // ---- 1-Tap "Who Are You?" Seat Picker ----
@@ -5055,10 +5505,22 @@
     list.innerHTML = '';
 
     state.players.forEach((p, idx) => {
-      const isMe = p.claimedByDeviceId === MY_DEVICE_ID;
-      const claimedOther = p.claimedByDeviceId && !isMe;
       const btn = document.createElement('button');
       btn.className = 'menu-item';
+      if (p.isAI) {
+        btn.disabled = true;
+        btn.innerHTML = `<div class="menu-item-left">
+          <span>🤖</span>
+          <div>
+            <div class="menu-item-title">${escapeHtml(p.name)}</div>
+            <div class="menu-item-sub">Computer opponent (${p.aiLevel === 'casual' ? 'Casual' : 'Pro'})</div>
+          </div>
+        </div><span>AI</span>`;
+        list.appendChild(btn);
+        return;
+      }
+      const isMe = p.claimedByDeviceId === MY_DEVICE_ID;
+      const claimedOther = p.claimedByDeviceId && !isMe;
       btn.innerHTML = `<div class="menu-item-left">
         <span>${isMe ? '✅' : (claimedOther ? '📱' : '🪑')}</span>
         <div>
@@ -5561,12 +6023,16 @@
     $('menuNewGame').addEventListener('click', () => { closeModal('modalMenu'); openSetupModal(); });
     $('menuModeSwitch').addEventListener('click', () => {
       closeModal('modalMenu');
+      cancelAiTurn();
       state.mode = state.mode === '3d' ? 'scorecard' : '3d';
+      if (state.mode === 'scorecard') {
+        state.players.forEach(p => { if (p.isAI) { p.isAI = false; p.aiLevel = null; p.aiOwnerDeviceId = null; } });
+      }
       state.turnSeq++;
       broadcastFullState();
       renderAll();
       if (state.mode === '3d') {
-        setTimeout(() => { DiceEngine.computeLayout(); DiceEngine.syncFromState(state.turnState, true); }, 30);
+        setTimeout(() => { DiceEngine.computeLayout(); DiceEngine.syncFromState(state.turnState, true); scheduleAiTurnIfNeeded(); }, 30);
       }
       showToast(state.mode === '3d' ? 'Switched to 3D Yachti' : 'Switched to Digital Scorecard');
     });
@@ -5579,7 +6045,11 @@
 
     // Setup Modal
     $('setupMode3d').addEventListener('click', () => { setupDraft.mode = '3d'; renderSetupModal(); });
-    $('setupModeCard').addEventListener('click', () => { setupDraft.mode = 'scorecard'; renderSetupModal(); });
+    $('setupModeCard').addEventListener('click', () => { setupDraft.mode = 'scorecard'; setupDraft.vsComputer = false; renderSetupModal(); });
+    $('setupOppHuman').addEventListener('click', () => { setupDraft.vsComputer = false; renderSetupModal(); });
+    $('setupOppAi').addEventListener('click', () => { setupDraft.vsComputer = true; setupDraft.mode = '3d'; renderSetupModal(); });
+    $('setupAiCasual').addEventListener('click', () => { setupDraft.aiLevel = 'casual'; renderSetupModal(); });
+    $('setupAiPro').addEventListener('click', () => { setupDraft.aiLevel = 'pro'; renderSetupModal(); });
     $('btnSetupStart').addEventListener('click', applySetupNewGame);
     $('btnSetupJoinRoom').addEventListener('click', () => { closeModal('modalSetup'); openLinkModal('online'); });
 
@@ -5715,6 +6185,10 @@
           showToast('🎉 YACHTI! Five of a kind!');
         }
         renderAll();
+        if (isActivePlayerAI()) {
+          const active = state.players[state.activePlayerIndex];
+          if (isLocalAiOwner(active)) handleAiAfterRoll(aiRunId);
+        }
       }
     });
 
@@ -5737,9 +6211,10 @@
         setTimeout(() => openSeatPicker(), 1100);
       }
     } else if (!saved) {
-      // Fresh first launch: show crisp 1-step setup so user can pick 1-6 players or hit Start immediately
+      // Fresh first launch: show crisp 1-step setup so user can pick 1-6 players or vs Computer
       openSetupModal();
     }
+    scheduleAiTurnIfNeeded();
   }
 
   boot();

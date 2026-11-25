@@ -272,6 +272,36 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 5px;
+    border-radius: 6px;
+  }
+  .turn-player-name:active { background: rgba(255, 255, 255, 0.1); }
+  .edit-pencil {
+    font-size: 10px;
+    opacity: 0.62;
+    flex-shrink: 0;
+  }
+  .rename-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .rename-pill {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .rename-pill.active {
+    background: var(--gold-dim);
+    border-color: rgba(229, 185, 76, 0.55);
+    color: var(--gold);
   }
 
   .turn-meta {
@@ -1194,7 +1224,7 @@
   <div class="turn-strip">
     <div class="turn-who">
       <span id="turnBadge" class="turn-badge">Your Turn</span>
-      <span id="turnPlayerName" class="turn-player-name">Player 1</span>
+      <button id="turnPlayerName" class="turn-player-name" title="Tap to edit player name"><span id="turnPlayerNameText">Player 1</span><span class="edit-pencil">✏️</span></button>
     </div>
     <div class="turn-meta">
       <span id="roundLabel">Round 1/13</span>
@@ -1267,6 +1297,10 @@
           <div class="menu-item-left"><span>👤</span><div><div class="menu-item-title">Change My Seat</div><div class="menu-item-sub" id="menuSeatSub">Claim a player or watch as spectator</div></div></div>
           <span>›</span>
         </button>
+        <button id="menuRename" class="menu-item">
+          <div class="menu-item-left"><span>✏️</span><div><div class="menu-item-title">Edit Player Names</div><div class="menu-item-sub">Update your name or any player's name anytime</div></div></div>
+          <span>›</span>
+        </button>
         <button id="menuAudioToggle" class="menu-item">
           <div class="menu-item-left"><span>🔊</span><div><div class="menu-item-title">Sound Effects</div><div class="menu-item-sub" id="menuAudioSub">On</div></div></div>
           <span id="menuAudioBadge">ON</span>
@@ -1282,7 +1316,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.2.0 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.2.1 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1470,7 +1504,11 @@
       <button class="modal-close" data-close="modalSeat" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <div class="muted-note">Pick your seat so your screen focuses automatically on your turn. Unclaimed seats stay controllable on the host device.</div>
+      <div class="muted-note">Enter your name (optional) and pick your seat — you will go straight to a blank scorecard while the host finishes setting up.</div>
+      <div>
+        <span class="field-label">Your Name (Optional · Editable anytime)</span>
+        <input id="inputSeatCustomName" class="text-input" maxlength="18" placeholder="Leave blank to keep seat name">
+      </div>
       <div id="seatOptionsList" class="menu-list"></div>
     </div>
   </div>
@@ -1484,6 +1522,7 @@
       <button class="modal-close" data-close="modalEditName" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
+      <div id="editNamePlayerPills" class="rename-pills"></div>
       <input id="inputEditName" class="text-input" maxlength="18" placeholder="Player name">
     </div>
     <div class="modal-foot">
@@ -1548,7 +1587,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.2.1';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const SESSION_ROOM_KEY = 'yachti_v1_room_session';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
@@ -4841,8 +4880,10 @@
   let lastAirOfferCode = '';
   let lastAirAnswerCode = '';
   let awaitingRoomSync = false;
+  let hostAwaitingPeerForNewGame = false;
   let activeLinkTab = 'online';
   let lastAnnouncedScoreSeq = 0;
+  let setupEditedIndices = new Set();
 
   // Setup modal temporary selections & AI turn runner
   let setupDraft = { mode: '3d', vsComputer: false, aiLevel: 'pro', aiName: 'Yachti Bot', count: 2, names: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'] };
@@ -5153,7 +5194,9 @@
         openSeatPicker();
         showToast(`Synced Room ${state.roomId}! Pick your seat`);
       } else if ($('modalSeat').classList.contains('open')) {
-        openSeatPicker();
+        openSeatPicker({ preserveCustomInput: true });
+      } else if ($('modalSetup').classList.contains('open')) {
+        syncOpenSetupModalFromState();
       }
     }
     return true;
@@ -5547,12 +5590,20 @@
         renderAll();
       }
     } else if (pkt.type === 'NAME_UPDATE') {
-      const p = state.players.find(pl => pl.id === pkt.playerId);
+      let p = state.players.find(pl => pl.id === pkt.playerId);
+      if (!p && typeof pkt.playerIndex === 'number' && state.players[pkt.playerIndex]) {
+        p = state.players[pkt.playerIndex];
+      }
       if (p && (pkt.nameUpdatedAt || 0) >= (p.nameUpdatedAt || 0)) {
         p.name = pkt.name;
         p.nameUpdatedAt = pkt.nameUpdatedAt;
+        if (state.lastScoredEvent && state.lastScoredEvent.playerId === p.id) {
+          state.lastScoredEvent.playerName = p.name;
+        }
         saveStateLocal();
         renderAll();
+        if ($('modalSetup').classList.contains('open')) syncOpenSetupModalFromState();
+        if ($('modalSeat').classList.contains('open')) openSeatPicker({ preserveCustomInput: true });
       }
     }
   }
@@ -5607,7 +5658,7 @@
       badge.textContent = 'Watching';
       badge.className = 'turn-badge watching';
     }
-    $('turnPlayerName').textContent = active ? active.name : '';
+    $('turnPlayerNameText').textContent = active ? active.name : '';
     $('roundLabel').textContent = `Round ${state.roundNumber}/13`;
 
     // Stall-proof override button when watching a remote human player's turn (not needed on Computer turns)
@@ -5732,7 +5783,7 @@
       const isMe = player.claimedByDeviceId === MY_DEVICE_ID;
       html += `<th class="player-col ${isAct ? 'is-active' : ''} ${isLeader ? 'is-leader' : ''}">
         <button class="player-th-btn" data-edit-player="${idx}" title="Tap to rename ${escapeHtml(player.name)}">
-          <span class="player-th-name">${isLeader ? '👑 ' : ''}${escapeHtml(player.name)}${isMe ? ' •' : ''}</span>
+          <span class="player-th-name">${isLeader ? '👑 ' : ''}${escapeHtml(player.name)}${isMe ? ' •' : ''}<span class="edit-pencil">✏️</span></span>
           <span class="player-th-sub">${t.grandTotal} pts</span>
         </button>
       </th>`;
@@ -5908,15 +5959,17 @@
 
   // ---- 1-Step New Game Setup Modal ----
   function openSetupModal() {
+    setupEditedIndices = new Set();
     if (state) {
       setupDraft.mode = state.mode;
+      const inRoom = state.roomId !== 'LOCAL';
       const aiP = state.players.find(p => p.isAI);
-      setupDraft.vsComputer = !!(aiP && state.mode === '3d' && state.players.length === 2);
+      setupDraft.vsComputer = !inRoom && !!(aiP && state.mode === '3d' && state.players.length === 2);
       if (aiP) {
         setupDraft.aiLevel = aiP.aiLevel || 'pro';
         setupDraft.aiName = aiP.name || 'Yachti Bot';
       }
-      setupDraft.count = state.players.length;
+      setupDraft.count = inRoom ? Math.max(2, state.players.length) : state.players.length;
       state.players.forEach((p, i) => {
         if (!p.isAI) setupDraft.names[i] = p.name;
       });
@@ -5925,20 +5978,39 @@
     openModal('modalSetup');
   }
 
+  function syncOpenSetupModalFromState() {
+    if (!state || !$('modalSetup').classList.contains('open')) return;
+    let changed = false;
+    if (state.players.length > setupDraft.count) {
+      setupDraft.count = state.players.length;
+      changed = true;
+    }
+    state.players.forEach((p, i) => {
+      if (!p.isAI && !setupEditedIndices.has(i) && setupDraft.names[i] !== p.name) {
+        setupDraft.names[i] = p.name;
+        const inp = $('setupNameInputs').querySelector(`[data-setup-idx="${i}"]`);
+        if (inp && document.activeElement !== inp) inp.value = p.name;
+      }
+    });
+    if (changed) renderSetupModal();
+  }
+
   function renderSetupModal() {
+    const inRoom = !!(state && state.roomId !== 'LOCAL');
     const is3d = setupDraft.mode === '3d';
-    if (!is3d) setupDraft.vsComputer = false;
+    if (!is3d || inRoom) setupDraft.vsComputer = false;
     const isAi = is3d && setupDraft.vsComputer;
 
     $('setupMode3d').classList.toggle('active', is3d);
     $('setupModeCard').classList.toggle('active', !is3d);
-    $('setupOpponentWrap').classList.toggle('hidden', !is3d);
+    $('setupOpponentWrap').classList.toggle('hidden', !is3d || inRoom);
     $('setupOppHuman').classList.toggle('active', !isAi);
     $('setupOppAi').classList.toggle('active', isAi);
     $('setupAiLevelWrap').classList.toggle('hidden', !isAi);
     $('setupAiCasual').classList.toggle('active', setupDraft.aiLevel === 'casual');
     $('setupAiPro').classList.toggle('active', setupDraft.aiLevel !== 'casual');
     $('setupCountWrap').classList.toggle('hidden', isAi);
+    $('btnSetupJoinRoom').textContent = inRoom ? `🔗 Room ${state.roomId}` : 'Join Room';
 
     const pills = $('setupCountPills');
     pills.innerHTML = '';
@@ -5956,9 +6028,10 @@
       const p1 = document.createElement('input');
       p1.className = 'text-input';
       p1.maxLength = 18;
+      p1.dataset.setupIdx = '0';
       p1.value = setupDraft.names[0] || 'Player 1';
-      p1.placeholder = 'Your Name';
-      p1.oninput = (e) => { setupDraft.names[0] = e.target.value; };
+      p1.placeholder = 'Your Name (Player 1)';
+      p1.oninput = (e) => { setupEditedIndices.add(0); setupDraft.names[0] = e.target.value; };
 
       const p2 = document.createElement('input');
       p2.className = 'text-input';
@@ -5973,9 +6046,10 @@
         const inp = document.createElement('input');
         inp.className = 'text-input';
         inp.maxLength = 18;
+        inp.dataset.setupIdx = String(i);
         inp.value = setupDraft.names[i] || `Player ${i + 1}`;
-        inp.placeholder = `Player ${i + 1}`;
-        inp.oninput = (e) => { setupDraft.names[i] = e.target.value; };
+        inp.placeholder = (i === 0 && inRoom) ? 'Player 1 (You · Host)' : `Player ${i + 1}`;
+        inp.oninput = (e) => { setupEditedIndices.add(i); setupDraft.names[i] = e.target.value; };
         grid.appendChild(inp);
       }
     }
@@ -5983,7 +6057,9 @@
 
   function applySetupNewGame() {
     cancelAiTurn();
-    const isAi = setupDraft.mode === '3d' && setupDraft.vsComputer;
+    hostAwaitingPeerForNewGame = false;
+    const keepRoom = state && state.roomId !== 'LOCAL';
+    const isAi = !keepRoom && setupDraft.mode === '3d' && setupDraft.vsComputer;
     const names = [];
     if (isAi) {
       names.push((setupDraft.names[0] || '').trim() || 'Player 1');
@@ -5994,12 +6070,11 @@
         names.push(nm || `Player ${i + 1}`);
       }
     }
-    const keepRoom = state && state.roomId !== 'LOCAL';
     const nextRoomId = keepRoom ? state.roomId : 'LOCAL';
     const nextToken = keepRoom ? state.sessionToken : null;
     const prevSeq = state ? state.turnSeq : 0;
     const prevCommit = state ? (state.commitSeq || prevSeq) : 0;
-    const prevClaims = keepRoom ? state.players.map(p => p.claimedByDeviceId) : [];
+    const prevPlayers = keepRoom ? deepClone(state.players) : [];
 
     state = createCanonicalState({
       playerNames: names,
@@ -6009,17 +6084,35 @@
       vsComputer: isAi,
       aiLevel: setupDraft.aiLevel
     });
-    // Preserve device seat ownership inside an active room so Focus View / All-Players View keeps working!
+
+    // In a hosted/linked room, the host starting the game is ALWAYS Player 1 (Seat 0),
+    // while preserving existing remote player seat claims & IDs on seats 1..N.
     if (keepRoom) {
+      const displacedRemoteDevices = [];
       state.players.forEach((p, idx) => {
-        if (!p.isAI && idx < prevClaims.length && prevClaims[idx]) {
-          p.claimedByDeviceId = prevClaims[idx];
+        if (idx < prevPlayers.length && prevPlayers[idx]) {
+          p.id = prevPlayers[idx].id;
+          const prevOwner = prevPlayers[idx].claimedByDeviceId;
+          if (idx === 0) {
+            if (prevOwner && prevOwner !== MY_DEVICE_ID) displacedRemoteDevices.push(prevOwner);
+          } else if (prevOwner && prevOwner !== MY_DEVICE_ID && !p.isAI) {
+            p.claimedByDeviceId = prevOwner;
+          }
         }
       });
-      if (getMyClaimedPlayerIndices().length === 0 && state.players[0] && !state.players[0].isAI && !state.players[0].claimedByDeviceId) {
+      if (state.players[0] && !state.players[0].isAI) {
         state.players[0].claimedByDeviceId = MY_DEVICE_ID;
       }
+      // If a remote device was previously in seat 0, place them into the first open seat >= 1
+      for (const devId of displacedRemoteDevices) {
+        const alreadySeated = state.players.some(p => p.claimedByDeviceId === devId);
+        if (!alreadySeated) {
+          const openSeat = state.players.find((p, i) => i > 0 && !p.isAI && !p.claimedByDeviceId);
+          if (openSeat) openSeat.claimedByDeviceId = devId;
+        }
+      }
     }
+
     state.commitSeq = prevCommit + 1;
     state.turnSeq = prevSeq + 1;
     userViewOverride = null;
@@ -6039,8 +6132,11 @@
   }
 
   // ---- 1-Tap "Who Are You?" Seat Picker ----
-  function openSeatPicker() {
+  function openSeatPicker({ preserveCustomInput = false } = {}) {
     if (!state) return;
+    if (!preserveCustomInput) {
+      $('inputSeatCustomName').value = '';
+    }
     const list = $('seatOptionsList');
     list.innerHTML = '';
 
@@ -6061,11 +6157,12 @@
       }
       const isMe = p.claimedByDeviceId === MY_DEVICE_ID;
       const claimedOther = p.claimedByDeviceId && !isMe;
+      const hostHint = idx === 0 && claimedOther ? 'Host seat (Player 1)' : (claimedOther ? 'Linked on another device (tap to take over)' : 'Available seat — tap to join');
       btn.innerHTML = `<div class="menu-item-left">
         <span>${isMe ? '✅' : (claimedOther ? '📱' : '🪑')}</span>
         <div>
           <div class="menu-item-title">Play as ${escapeHtml(p.name)}</div>
-          <div class="menu-item-sub">${isMe ? 'Your current seat' : (claimedOther ? 'Linked on another device (tap to take over)' : 'Unclaimed seat')}</div>
+          <div class="menu-item-sub">${isMe ? 'Your current seat' : hostHint}</div>
         </div>
       </div><span>›</span>`;
       btn.onclick = () => claimSeat(idx);
@@ -6083,14 +6180,18 @@
         </div>
       </div><span>›</span>`;
       addBtn.onclick = () => {
+        const customName = ($('inputSeatCustomName').value || '').trim().slice(0, 18);
         const idx = state.players.length;
-        state.players.push(createPlayer(idx, `Player ${idx + 1}`, MY_DEVICE_ID));
+        state.players.forEach(p => { if (p.claimedByDeviceId === MY_DEVICE_ID) p.claimedByDeviceId = null; });
+        state.players.push(createPlayer(idx, customName || `Player ${idx + 1}`, MY_DEVICE_ID));
         state.commitSeq = (state.commitSeq || 1) + 1;
         state.turnSeq++;
+        userViewOverride = null;
         broadcastFullState();
         closeModal('modalSeat');
+        DiceEngine.syncFromState(state.turnState, true);
         renderAll();
-        showToast(`Joined as ${state.players[idx].name}`);
+        showToast(`Joined as ${state.players[idx].name} — ready to play!`);
       };
       list.appendChild(addBtn);
     }
@@ -6108,6 +6209,7 @@
       state.players.forEach(p => {
         if (p.claimedByDeviceId === MY_DEVICE_ID) p.claimedByDeviceId = null;
       });
+      state.commitSeq = (state.commitSeq || 1) + 1;
       state.turnSeq++;
       broadcastFullState();
       closeModal('modalSeat');
@@ -6120,17 +6222,24 @@
   }
 
   function claimSeat(idx) {
+    const customName = ($('inputSeatCustomName').value || '').trim().slice(0, 18);
     state.players.forEach((p, i) => {
       if (i !== idx && p.claimedByDeviceId === MY_DEVICE_ID) p.claimedByDeviceId = null;
     });
-    state.players[idx].claimedByDeviceId = MY_DEVICE_ID;
+    const seat = state.players[idx];
+    seat.claimedByDeviceId = MY_DEVICE_ID;
+    if (customName) {
+      seat.name = customName;
+      seat.nameUpdatedAt = Date.now();
+    }
     state.commitSeq = (state.commitSeq || 1) + 1;
     state.turnSeq++;
     userViewOverride = null;
     broadcastFullState();
     closeModal('modalSeat');
+    DiceEngine.syncFromState(state.turnState, true);
     renderAll();
-    showToast(`Playing as ${state.players[idx].name}`);
+    showToast(`Joined as ${seat.name} — ready to play!`);
   }
 
   // ---- Link / Invite & ✈️ Airplane Sync Modal ----
@@ -6192,22 +6301,46 @@
       : 'Unassigned (host controls unclaimed seats)';
   }
 
-  function createLiveRoom() {
-    state.roomId = generateRoomCode();
-    state.sessionToken = randomHex(16);
-    state.commitSeq = Math.max(1, (state.commitSeq || 0) + 1);
-    state.turnSeq = Math.max(1, state.turnSeq + 1);
-    // Auto-claim Seat 0 for the Host so Focus View vs. All-Players View works automatically once Guest claims Seat 1
-    if (getMyClaimedPlayerIndices().length === 0 && state.players[0] && !state.players[0].isAI) {
-      state.players[0].claimedByDeviceId = MY_DEVICE_ID;
-    }
+  function prepareBlankHostedRoomState(roomId, sessionToken) {
+    cancelAiTurn();
+    const prevHumanNames = (state && Array.isArray(state.players))
+      ? state.players.filter(p => !p.isAI).map(p => p.name)
+      : [];
+    const names = prevHumanNames.length >= 2
+      ? prevHumanNames.slice(0, MAX_PLAYERS)
+      : [prevHumanNames[0] || 'Player 1', 'Player 2'];
+    const prevCommit = state ? (state.commitSeq || state.turnSeq || 0) : 0;
+    const prevSeq = state ? (state.turnSeq || 0) : 0;
+
+    state = createCanonicalState({
+      playerNames: names,
+      mode: state ? state.mode : '3d',
+      roomId,
+      sessionToken,
+      vsComputer: false
+    });
+    // Host is automatically Player 1 (Seat 0); seats 1+ start unclaimed on a fresh blank scorecard
+    state.players[0].claimedByDeviceId = MY_DEVICE_ID;
+    state.commitSeq = prevCommit + 1;
+    state.turnSeq = prevSeq + 1;
+    userViewOverride = null;
+    localOverrideActive = false;
     awaitingRoomSync = false;
+    hostAwaitingPeerForNewGame = true;
     saveStateLocal();
+    DiceEngine.syncFromState(state.turnState, true);
+    renderAll();
+  }
+
+  function createLiveRoom() {
+    const newRoomId = generateRoomCode();
+    const newToken = randomHex(16);
+    prepareBlankHostedRoomState(newRoomId, newToken);
     // Keep URL clean (share/QR uses buildShareUrl()) so closing & reopening the app starts fresh in Local mode
     history.replaceState(null, '', location.pathname);
     SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false, publishInitial: true });
     updateSyncModalUI();
-    showToast(`Room ${state.roomId} created — connecting relay…`);
+    showToast(`Room ${state.roomId} created — waiting for players…`);
   }
 
   function handleJoinRoomInput(rawInput) {
@@ -6268,14 +6401,7 @@
     $('airStatusText').textContent = 'Gathering local Bluetooth PAN / Hotspot address…';
 
     if (state.roomId === 'LOCAL') {
-      state.roomId = generateRoomCode();
-      state.sessionToken = randomHex(16);
-      state.commitSeq = Math.max(1, (state.commitSeq || 0) + 1);
-      state.turnSeq = Math.max(1, state.turnSeq + 1);
-      if (getMyClaimedPlayerIndices().length === 0 && state.players[0] && !state.players[0].isAI) {
-        state.players[0].claimedByDeviceId = MY_DEVICE_ID;
-      }
-      saveStateLocal();
+      prepareBlankHostedRoomState(generateRoomCode(), randomHex(16));
     }
     try {
       const packed = await SyncEngine.createAirplaneOffer(state.roomId, state.sessionToken);
@@ -6586,16 +6712,45 @@
       }
       const editTh = e.target.closest('[data-edit-player]');
       if (editTh) {
-        editingPlayerIndex = parseInt(editTh.getAttribute('data-edit-player'), 10);
-        const p = state.players[editingPlayerIndex];
-        if (!p) return;
-        $('inputEditName').value = p.name;
-        openModal('modalEditName');
-        setTimeout(() => { $('inputEditName').focus(); $('inputEditName').select(); }, 40);
+        openEditNameModal(parseInt(editTh.getAttribute('data-edit-player'), 10));
       }
     });
 
-    // Inline Player Name Save
+    function openEditNameModal(targetIdx) {
+      if (!state || !state.players.length) return;
+      if (typeof targetIdx !== 'number' || targetIdx < 0 || targetIdx >= state.players.length) {
+        const mine = getMyClaimedPlayerIndices();
+        targetIdx = mine.length ? mine[0] : state.activePlayerIndex;
+      }
+      editingPlayerIndex = targetIdx;
+      const pillsWrap = $('editNamePlayerPills');
+      pillsWrap.innerHTML = '';
+      if (state.players.length > 1) {
+        state.players.forEach((pl, idx) => {
+          const pill = document.createElement('button');
+          pill.className = `rename-pill ${idx === editingPlayerIndex ? 'active' : ''}`;
+          const isMe = pl.claimedByDeviceId === MY_DEVICE_ID;
+          pill.textContent = isMe ? `${pl.name} (You)` : pl.name;
+          pill.onclick = () => openEditNameModal(idx);
+          pillsWrap.appendChild(pill);
+        });
+        pillsWrap.classList.remove('hidden');
+      } else {
+        pillsWrap.classList.add('hidden');
+      }
+      const p = state.players[editingPlayerIndex];
+      $('inputEditName').value = p ? p.name : '';
+      openModal('modalEditName');
+      setTimeout(() => { $('inputEditName').focus(); $('inputEditName').select(); }, 40);
+    }
+
+    $('turnPlayerName').addEventListener('click', () => {
+      if (!state) return;
+      const mine = getMyClaimedPlayerIndices();
+      openEditNameModal(mine.length ? mine[0] : state.activePlayerIndex);
+    });
+
+    // Inline Player Name Save (syncs immediately across all linked devices at any point in the game)
     $('btnSavePlayerName').addEventListener('click', saveEditedName);
     $('inputEditName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveEditedName(); });
     function saveEditedName() {
@@ -6605,10 +6760,24 @@
       const p = state.players[editingPlayerIndex];
       p.name = val;
       p.nameUpdatedAt = Date.now();
+      if (state.lastScoredEvent && state.lastScoredEvent.playerId === p.id) {
+        state.lastScoredEvent.playerName = p.name;
+      }
       saveStateLocal();
-      SyncEngine.sendPacket({ type: 'NAME_UPDATE', playerId: p.id, name: p.name, nameUpdatedAt: p.nameUpdatedAt });
+      SyncEngine.sendPacket({
+        type: 'NAME_UPDATE',
+        playerId: p.id,
+        playerIndex: editingPlayerIndex,
+        name: p.name,
+        nameUpdatedAt: p.nameUpdatedAt
+      });
+      // Also update retained room snapshot quietly when idle so newly joining players see the latest name
+      if (state.roomId !== 'LOCAL' && !state.turnState.animating) {
+        SyncEngine.sendPacket({ type: 'STATE_SYNC', state: buildWireState(state) }, { retain: state.turnSeq > 0 });
+      }
       closeModal('modalEditName');
       renderAll();
+      showToast(`Name updated to ${p.name}`);
     }
 
     // Menu Items
@@ -6631,6 +6800,7 @@
     $('menuLink').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal('online'); });
     $('menuAirplane').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal('airplane'); });
     $('menuSeat').addEventListener('click', () => { closeModal('modalMenu'); openSeatPicker(); });
+    $('menuRename').addEventListener('click', () => { closeModal('modalMenu'); openEditNameModal(); });
     $('menuAudioToggle').addEventListener('click', () => { Prefs.sound = !Prefs.sound; renderHUDAndControls(); });
     $('menuHapticsToggle').addEventListener('click', () => { Prefs.haptics = !Prefs.haptics; renderHUDAndControls(); });
     $('menuInstall').addEventListener('click', handleInstallClick);
@@ -6651,6 +6821,7 @@
     $('btnCreateRoom').addEventListener('click', createLiveRoom);
     $('btnRoomNewGame').addEventListener('click', () => { closeModal('modalLink'); openSetupModal(); });
     $('btnLeaveRoom').addEventListener('click', () => {
+      hostAwaitingPeerForNewGame = false;
       const humanCount = state.players.filter(p => !p.isAI).length;
       SyncEngine.disconnect({ announceLeave: true, clearRetained: humanCount <= 2 });
       state.roomId = 'LOCAL';
@@ -6801,12 +6972,21 @@
       onStatusChange: () => updateSyncModalUI(),
       onPeerConnected: (peerId, transport) => {
         updateSyncModalUI();
-        if (transport === 'airplane') {
+        const isAir = transport === 'airplane';
+        if (isAir) {
           $('airStatusText').textContent = '✈️ Connected! Direct P2P link active.';
-          showToast('✈️ Airplane P2P linked!');
-          if (!awaitingRoomSync) closeModal('modalLink');
+        }
+        const gameNotStartedYet = state && state.turnState.rollNumber === 0 &&
+          state.players.every(p => ALL_CATS.every(c => p.scores[c.key] === null));
+
+        if (hostAwaitingPeerForNewGame && !awaitingRoomSync && gameNotStartedYet) {
+          hostAwaitingPeerForNewGame = false;
+          closeModal('modalLink');
+          openSetupModal();
+          showToast(isAir ? '✈️ Player connected! Set up your new game' : '🔗 Player connected! Set up your new game', 3600);
         } else {
-          showToast('🔗 Another device linked to this room!');
+          showToast(isAir ? '✈️ Airplane P2P linked!' : '🔗 Another player connected to this room!', 3000);
+          if (isAir && !awaitingRoomSync) closeModal('modalLink');
         }
       },
       onPeerLeft: (leaverId) => {

@@ -1,7 +1,7 @@
 {
   "name": "Yachti",
   "short_name": "Yachti",
-  "description": "Mobile-first 3D dice game and live synced scorecard with offline & Airplane P2P sync.",
+  "description": "Mobile-first 3D dice game and live synced scorecard for online rooms, vs. Computer, and offline Pass-and-Play.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

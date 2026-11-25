@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Yachti">
-<meta name="description" content="Yachti — Mobile-first 3D dice game and live synced scorecard with offline & Airplane P2P sync.">
+<meta name="description" content="Yachti — Mobile-first 3D dice game and live synced scorecard for online rooms, vs. Computer, and offline Pass-and-Play.">
 <title>Yachti</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
@@ -190,11 +190,6 @@
     box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
   }
 
-  .sync-pill.airplane .sync-dot {
-    background: var(--sky);
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
-  }
-
   .sync-pill.connecting .sync-dot {
     background: var(--amber);
     animation: pulseDot 1.1s infinite;
@@ -323,6 +318,43 @@
     font-weight: 700;
     white-space: nowrap;
   }
+
+  /* Single-Device Pass-and-Play Handoff Strip */
+  .pass-handoff-strip {
+    flex: 0 0 auto;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 12px;
+    background: linear-gradient(90deg, rgba(229, 185, 76, 0.22), rgba(52, 211, 153, 0.14));
+    border-bottom: 1px solid rgba(229, 185, 76, 0.45);
+    color: #fef3c7;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+  .pass-handoff-strip.visible { display: flex; }
+  .pass-handoff-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pass-ready-btn {
+    flex: 0 0 auto;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #eec65d 0%, #c99728 100%);
+    color: #161004;
+    font-size: 11.5px;
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(229, 185, 76, 0.3);
+  }
+  .pass-ready-btn:active { transform: scale(0.96); }
 
   /* Last Remote Score Strip */
   .last-score-strip {
@@ -1235,6 +1267,12 @@
     </div>
   </div>
 
+  <!-- Single-Device Pass-and-Play Handoff Strip -->
+  <div id="passHandoffStrip" class="pass-handoff-strip">
+    <span id="passHandoffText" class="pass-handoff-text">📱 Pass device to Player 2</span>
+    <button id="btnPassReady" class="pass-ready-btn">Ready</button>
+  </div>
+
   <!-- Last Scored Feed Strip -->
   <div id="lastScoreStrip" class="last-score-strip"></div>
 
@@ -1289,11 +1327,7 @@
           <span>›</span>
         </button>
         <button id="menuLink" class="menu-item">
-          <div class="menu-item-left"><span>🔗</span><div><div class="menu-item-title">Link / Invite Devices</div><div class="menu-item-sub">Room Code, Share Link, QR &amp; ✈️ Airplane Sync</div></div></div>
-          <span>›</span>
-        </button>
-        <button id="menuAirplane" class="menu-item">
-          <div class="menu-item-left"><span>✈️</span><div><div class="menu-item-title">Airplane / Offline Sync</div><div class="menu-item-sub">2-scan QR link over Bluetooth PAN or Hotspot</div></div></div>
+          <div class="menu-item-left"><span>🔗</span><div><div class="menu-item-title">Link / Invite Devices</div><div class="menu-item-sub">Online room via 4-char Code, Share Link or QR</div></div></div>
           <span>›</span>
         </button>
         <button id="menuSeat" class="menu-item">
@@ -1319,7 +1353,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.2.3 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.3.0 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1343,7 +1377,7 @@
       <div id="setupOpponentWrap">
         <span class="field-label">Opponent</span>
         <div class="seg-group">
-          <button id="setupOppHuman" class="seg-btn active">👥 Human (1–6)</button>
+          <button id="setupOppHuman" class="seg-btn active">👥 Pass &amp; Play (1–6)</button>
           <button id="setupOppAi" class="seg-btn">🤖 vs Computer (2P)</button>
         </div>
       </div>
@@ -1362,7 +1396,7 @@
         <span class="field-label">Player Names (Editable anytime)</span>
         <div id="setupNameInputs" class="player-inputs-grid"></div>
       </div>
-      <div class="muted-note">Start playing immediately on this device, or tap <b>Link Devices</b> anytime to invite others to join this game.</div>
+      <div class="muted-note">Works 100% offline for flights &amp; Pass-and-Play, or tap <b>Link Devices</b> when online to sync across multiple phones.</div>
     </div>
     <div class="modal-foot">
       <button id="btnSetupJoinRoom" class="btn sm">Join Room</button>
@@ -1371,7 +1405,7 @@
   </div>
 </div>
 
-<!-- Link / Invite & Airplane Sync Modal -->
+<!-- Link / Invite Devices Modal -->
 <div id="modalLink" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Link Devices">
   <div class="modal-card">
     <div class="modal-head">
@@ -1379,11 +1413,6 @@
       <button class="modal-close" data-close="modalLink" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <div id="linkTabsBar" class="seg-group">
-        <button id="tabOnlineSync" class="seg-btn active">🌐 Online Room</button>
-        <button id="tabAirplaneSync" class="seg-btn">✈️ Airplane Sync</button>
-      </div>
-
       <!-- Built-in Camera QR Scanner (Placed at top so viewfinder is always in view) -->
       <div id="qrScannerPanel" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
         <div class="scanner-box">
@@ -1394,7 +1423,7 @@
         <button id="btnStopScanner" class="btn danger sm full">Cancel Camera</button>
       </div>
 
-      <!-- Online Room Tab -->
+      <!-- Online Room Sync -->
       <div id="panelOnlineSync" style="display:flex; flex-direction:column; gap:12px;">
         <div id="onlineNotHosted">
           <div class="muted-note" style="margin-bottom:10px;">Create a private room to sync 3D rolls, kept dice, and scores across up to 6 phones in real time.</div>
@@ -1433,67 +1462,10 @@
             <button id="btnScanOnlineQr" class="btn sm full">📷 Scan Room QR Code</button>
           </div>
         </div>
-      </div>
 
-      <!-- Airplane / Offline Sync Tab -->
-      <div id="panelAirplaneSync" class="hidden" style="display:flex; flex-direction:column; gap:11px;">
-        <div class="checklist-box">
-          <b>Zero Wi-Fi / Zero Data Pairing (3 Steps):</b>
-          <ol>
-            <li>Turn on <b>Bluetooth Tethering</b> (or an offline <b>Wi-Fi Hotspot</b> with mobile data off) between devices.</li>
-            <li><b>Host</b> taps <i>Host (Create Offer)</i> → <b>Guest</b> scans Offer QR to create an Answer QR.</li>
-            <li><b>Host</b> scans Guest's Answer QR → direct P2P link locks in!</li>
-          </ol>
+        <div class="muted-note" style="text-align:center; padding-top:2px;">
+          Offline or on a flight? Play <b>Pass-and-Play</b> or <b>vs. Computer</b> on one device.
         </div>
-
-        <div class="row-gap">
-          <button id="btnAirHost" class="btn primary">Host (Create Offer)</button>
-          <button id="btnAirGuest" class="btn emerald">Join (Scan Offer)</button>
-        </div>
-
-        <div id="airStatusText" class="muted-note" style="text-align:center;"></div>
-
-        <!-- Airplane Host Flow -->
-        <div id="airHostBox" class="hidden" style="display:flex; flex-direction:column; gap:9px;">
-          <div class="field-label" style="margin:0;">Step 1: Guest scans this Offer QR</div>
-          <div class="qr-wrap">
-            <canvas id="airOfferQr" width="240" height="240"></canvas>
-          </div>
-          <div class="row-gap">
-            <button id="btnCopyAirOffer" class="btn sm">Copy Offer Code</button>
-            <button id="btnHostScanAnswer" class="btn emerald sm">📷 Step 2: Scan Answer QR</button>
-          </div>
-          <div>
-            <span class="field-label">Or Paste Guest Answer Code</span>
-            <div class="row-gap">
-              <input id="inputAirAnswer" class="text-input" placeholder="Paste YAIR:... answer">
-              <button id="btnApplyAirAnswer" class="btn primary sm" style="flex:0 0 auto;">Connect</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Airplane Guest Flow -->
-        <div id="airGuestBox" class="hidden" style="display:flex; flex-direction:column; gap:9px;">
-          <div id="airGuestStep1" style="display:flex; flex-direction:column; gap:8px;">
-            <button id="btnGuestScanOffer" class="btn emerald full">📷 Step 1: Scan Host Offer QR</button>
-            <div>
-              <span class="field-label">Or Paste Host Offer Code</span>
-              <div class="row-gap">
-                <input id="inputAirOffer" class="text-input" placeholder="Paste YAIR:... offer">
-                <button id="btnApplyAirOffer" class="btn primary sm" style="flex:0 0 auto;">Create Answer</button>
-              </div>
-            </div>
-          </div>
-          <div id="airGuestStep2" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
-            <div class="field-label" style="margin:0;">Step 2: Host scans this Answer QR</div>
-            <div class="qr-wrap">
-              <canvas id="airAnswerQr" width="240" height="240"></canvas>
-            </div>
-            <button id="btnCopyAirAnswer" class="btn sm full">Copy Answer Code</button>
-          </div>
-        </div>
-
-        <button id="btnAirPassFallback" class="btn sm full">Or just play single-device Pass-and-Play</button>
       </div>
     </div>
   </div>
@@ -1590,7 +1562,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.2.3';
+  const APP_VERSION = '1.3.0';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const SESSION_ROOM_KEY = 'yachti_v1_room_session';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
@@ -3531,7 +3503,7 @@
   })();
 
   /* ============================================================================
-   * MODULE 5: MULTI-TRANSPORT SYNC ENGINE + AIRPLANE / OFFLINE WEBRTC QR SYNC
+   * MODULE 5: MULTI-TRANSPORT ONLINE SYNC ENGINE (BroadcastChannel + MQTT + WebRTC)
    * ============================================================================ */
   const SyncEngine = (() => {
     const MQTT_BROKERS = [
@@ -3547,7 +3519,6 @@
     let activeRoomId = 'LOCAL';
     let activeToken = '';
     let channelKey = '';
-    let airplaneModeActive = false;
 
     // Pending 4-char code join handshake state
     let pendingJoinCode = '';
@@ -3576,14 +3547,12 @@
       return false;
     }
 
-    // Online & Airplane WebRTC peers: Map<peerId, { pc, dc, airplane, createdAt, lastSeen }>
+    // Direct WebRTC DataChannel peers: Map<peerId, { pc, dc, createdAt, lastSeen }>
     const peers = new Map();
     const knownDevices = new Map(); // deviceId -> lastSeenMs
     let wakeSuppressUntil = 0;
 
-    // Pending Airplane handshake state, LWT/disconnect grace timers & room peer heartbeat
-    let airPendingPc = null;
-    let airPendingDc = null;
+    // LWT/disconnect grace timers & room peer heartbeat
     const leaveGraceTimers = new Map(); // senderId -> timerId
     let peerHeartbeatTimer = null;
     let peerWatchdogTimer = null;
@@ -3593,7 +3562,6 @@
       onStatusChange: () => {},
       onPeerConnected: () => {},
       onPeerLeft: () => {},
-      onAirplaneState: () => {},
       getFullState: () => null,
       onJoinGrantReceived: () => {},
       onJoinTimeout: () => {}
@@ -3893,7 +3861,7 @@
         b.connected = false;
         clearInterval(b.pingTimer);
         notifyStatus();
-        if ((activeRoomId !== 'LOCAL' || pendingJoinCode) && !airplaneModeActive) {
+        if (activeRoomId !== 'LOCAL' || pendingJoinCode) {
           scheduleBrokerReconnect(b);
         }
       };
@@ -3902,7 +3870,7 @@
     function scheduleBrokerReconnect(b) {
       clearTimeout(b.reconnectTimer);
       b.reconnectTimer = setTimeout(() => {
-        if ((activeRoomId !== 'LOCAL' || pendingJoinCode) && !airplaneModeActive) {
+        if (activeRoomId !== 'LOCAL' || pendingJoinCode) {
           connectSingleBroker({ name: b.name, url: b.url });
         }
       }, b.delay);
@@ -3910,7 +3878,7 @@
     }
 
     function ensureMqttPool() {
-      if ((activeRoomId === 'LOCAL' && !pendingJoinCode) || airplaneModeActive) return;
+      if (activeRoomId === 'LOCAL' && !pendingJoinCode) return;
       for (const cfg of MQTT_BROKERS) {
         connectSingleBroker(cfg);
       }
@@ -3953,7 +3921,7 @@
       try {
         const pc = new RTCPeerConnection({ iceServers: ICE_ONLINE });
         const dc = pc.createDataChannel('yachti', { ordered: true });
-        attachPeer(remotePeerId, pc, dc, false);
+        attachPeer(remotePeerId, pc, dc);
         pc.onicecandidate = (e) => {
           if (e.candidate) {
             sendPacket({ type: 'RTC_ICE', targetId: remotePeerId, candidate: e.candidate }, { mqttOnly: true });
@@ -3972,13 +3940,13 @@
         try {
           closePeer(from);
           const pc = new RTCPeerConnection({ iceServers: ICE_ONLINE });
-          pc.ondatachannel = (ev) => attachPeer(from, pc, ev.channel, false);
+          pc.ondatachannel = (ev) => attachPeer(from, pc, ev.channel);
           pc.onicecandidate = (e) => {
             if (e.candidate) {
               sendPacket({ type: 'RTC_ICE', targetId: from, candidate: e.candidate }, { mqttOnly: true });
             }
           };
-          peers.set(from, { pc, dc: null, airplane: false, createdAt: Date.now(), lastSeen: Date.now() });
+          peers.set(from, { pc, dc: null, createdAt: Date.now(), lastSeen: Date.now() });
           await pc.setRemoteDescription(new RTCSessionDescription(pkt.sdp));
           const ans = await pc.createAnswer();
           await pc.setLocalDescription(ans);
@@ -4013,7 +3981,7 @@
 
     function schedulePeerLeaveCheck(peerId, graceMs, probePeer = true) {
       if (!peerId || activeRoomId === 'LOCAL' || leaveGraceTimers.has(peerId)) return;
-      if (probePeer && !airplaneModeActive) {
+      if (probePeer) {
         sendPacket({ type: 'PING_CHECK', targetId: peerId }, { mqttOnly: true });
       }
       leaveGraceTimers.set(peerId, setTimeout(() => {
@@ -4050,8 +4018,8 @@
       peerWatchdogTimer = null;
     }
 
-    function attachPeer(peerId, pc, dc, isAirplane) {
-      const rec = { pc, dc, airplane: isAirplane, createdAt: Date.now(), lastSeen: Date.now() };
+    function attachPeer(peerId, pc, dc) {
+      const rec = { pc, dc, createdAt: Date.now(), lastSeen: Date.now() };
       peers.set(peerId, rec);
       if (dc) {
         let openedOnce = false;
@@ -4061,12 +4029,10 @@
           rec.lastSeen = Date.now();
           const wasKnown = knownDevices.has(peerId);
           knownDevices.set(peerId, Date.now());
-          if (isAirplane) airplaneModeActive = true;
           startPeerLivenessLoops();
           notifyStatus();
-          if (!wasKnown || isAirplane) handlers.onPeerConnected(peerId, isAirplane ? 'airplane' : 'webrtc');
+          if (!wasKnown) handlers.onPeerConnected(peerId, 'webrtc');
 
-          // Exchange full state if we have an authoritative game (turnSeq > 0), else ask with HELLO
           const st = handlers.getFullState();
           if (st && st.turnSeq > 0) {
             sendRawToDc(dc, {
@@ -4092,34 +4058,25 @@
         dc.onopen = handleDcOpen;
         dc.onmessage = (ev) => {
           rec.lastSeen = Date.now();
-          handleIncomingRaw(ev.data, isAirplane ? 'airplane' : 'webrtc', '');
+          handleIncomingRaw(ev.data, 'webrtc', '');
         };
         dc.onclose = () => {
           closePeer(peerId);
           notifyStatus();
-          // Fast departure check when P2P DataChannel drops (e.g. mobile app swipe-kill)
           if (activeRoomId !== 'LOCAL' && knownDevices.has(peerId)) {
-            schedulePeerLeaveCheck(peerId, isAirplane ? 4000 : 5000, !isAirplane);
+            schedulePeerLeaveCheck(peerId, 5000, true);
           }
         };
         if (dc.readyState === 'open') {
           setTimeout(handleDcOpen, 0);
         }
       }
-      pc.oniceconnectionstatechange = () => {
-        if (isAirplane) {
-          handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
-        }
-      };
       pc.onconnectionstatechange = () => {
-        if (isAirplane) {
-          handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
-        }
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           closePeer(peerId);
           notifyStatus();
           if (activeRoomId !== 'LOCAL' && knownDevices.has(peerId)) {
-            schedulePeerLeaveCheck(peerId, isAirplane ? 4000 : 5000, !isAirplane);
+            schedulePeerLeaveCheck(peerId, 5000, true);
           }
         }
       };
@@ -4142,241 +4099,6 @@
       if (dc && dc.readyState === 'open') {
         try { dc.send(JSON.stringify(obj)); } catch (_) {}
       }
-    }
-
-    // ---- ✈️ Airplane / Offline Sync: Compact SDP Codec (Zero External Servers) ----
-    function b64uEncode(str) {
-      const bytes = new TextEncoder().encode(str);
-      let bin = '';
-      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-      return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    function b64uDecode(str) {
-      let s = str.replace(/-/g, '+').replace(/_/g, '/');
-      while (s.length % 4) s += '=';
-      const bin = atob(s);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      return new TextDecoder().decode(bytes);
-    }
-
-    function compactSdp(desc, meta) {
-      const lines = desc.sdp.split(/\r?\n/);
-      let u = '', p = '', f = '', s = 'actpass', mid = '0';
-      const cands = [];
-      for (const line of lines) {
-        if (line.startsWith('a=ice-ufrag:')) u = line.slice(12).trim();
-        else if (line.startsWith('a=ice-pwd:')) p = line.slice(10).trim();
-        else if (line.startsWith('a=fingerprint:sha-256 ')) f = line.slice(22).trim().replace(/:/g, '');
-        else if (line.startsWith('a=setup:')) s = line.slice(8).trim();
-        else if (line.startsWith('a=mid:')) mid = line.slice(6).trim();
-        else if (line.startsWith('a=candidate:')) {
-          const parts = line.slice(12).trim().split(' ');
-          const proto = (parts[2] || '').toLowerCase();
-          const ip = parts[4];
-          const port = parseInt(parts[5], 10);
-          const typ = parts[7];
-          if (proto === 'udp' && ip && port && (typ === 'host' || typ === 'srflx')) {
-            if (!cands.some(c => c[0] === ip && c[1] === port)) {
-              cands.push([ip, port, typ === 'host' ? 0 : 1]);
-            }
-          }
-        }
-      }
-      cands.sort((a, b) => {
-        const rank = (ip) => {
-          if (/^(?:192\.168\.|10\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(ip)) return 0; // LAN / Hotspot / BT PAN IPv4
-          if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return 1;
-          if (ip.includes(':') && !ip.startsWith('fe80')) return 2;
-          if (ip.endsWith('.local')) return 3;
-          return 4;
-        };
-        return (rank(a[0]) - rank(b[0])) || (a[2] - b[2]);
-      });
-      const compact = {
-        t: desc.type === 'offer' ? 'o' : 'a',
-        u, p, f, s,
-        c: cands.slice(0, 6),
-        d: MY_DEVICE_ID.slice(-6)
-      };
-      if (mid && mid !== '0') compact.m = mid;
-      if (meta && meta.r) compact.r = meta.r;
-      if (meta && meta.k) compact.k = meta.k;
-      const ips = compact.c.map(c => c[0].endsWith('.local') ? 'mDNS(.local)' : c[0]);
-      return {
-        code: 'YAIR:' + b64uEncode(JSON.stringify(compact)),
-        candCount: compact.c.length,
-        hasIpv4: compact.c.some(c => /^\d+\.\d+\.\d+\.\d+$/.test(c[0])),
-        ips: Array.from(new Set(ips))
-      };
-    }
-
-    function expandSdp(tokenStr) {
-      const clean = tokenStr.trim();
-      if (!clean.startsWith('YAIR:')) throw new Error('Invalid Airplane Sync code');
-      const data = JSON.parse(b64uDecode(clean.slice(5)));
-      const fp = data.f.match(/.{1,2}/g).join(':').toUpperCase();
-      const mid = data.m || '0';
-      const candLines = (data.c || []).map((c, idx) => {
-        const isSrflx = c[2] === 1;
-        const typ = isSrflx ? 'srflx raddr 0.0.0.0 rport 0' : 'host';
-        const prio = 2122260223 - idx * 100;
-        return `a=candidate:${idx + 1} 1 udp ${prio} ${c[0]} ${c[1]} typ ${typ}`;
-      });
-      const sdp = [
-        'v=0',
-        'o=- 4611731400430051336 2 IN IP4 127.0.0.1',
-        's=-',
-        't=0 0',
-        `a=group:BUNDLE ${mid}`,
-        'a=msid-semantic: WMS',
-        'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
-        'c=IN IP4 0.0.0.0',
-        `a=ice-ufrag:${data.u}`,
-        `a=ice-pwd:${data.p}`,
-        'a=ice-options:trickle',
-        `a=fingerprint:sha-256 ${fp}`,
-        `a=setup:${data.s}`,
-        `a=mid:${mid}`,
-        'a=sctp-port:5000',
-        'a=max-message-size:262144',
-        ...candLines,
-        'a=end-of-candidates',
-        ''
-      ].join('\r\n');
-      const remoteIps = Array.from(new Set((data.c || []).map(c => c[0].endsWith('.local') ? 'mDNS(.local)' : c[0])));
-      return {
-        desc: { type: data.t === 'o' ? 'offer' : 'answer', sdp },
-        roomId: data.r || null,
-        sessionToken: data.k || null,
-        remoteShortId: data.d || randomHex(3),
-        remoteIps
-      };
-    }
-
-    /**
-     * Briefly invokes getUserMedia() and immediately stops the track so mobile Chrome
-     * reveals real local IPv4 host candidates (e.g., 192.168.x.x) instead of unroutable .local mDNS.
-     */
-    async function unlockLocalIpsViaCamera() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-        s.getTracks().forEach(t => t.stop());
-        return true;
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function waitIceGathering(pc, maxMs = 3000) {
-      return new Promise((resolve) => {
-        if (pc.iceGatheringState === 'complete') return resolve();
-        let done = false;
-        let seenCand = false;
-        const finish = () => { if (!done) { done = true; resolve(); } };
-        const hardTimer = setTimeout(finish, maxMs);
-        let softTimer = null;
-        pc.onicegatheringstatechange = () => {
-          if (pc.iceGatheringState === 'complete') {
-            clearTimeout(hardTimer);
-            clearTimeout(softTimer);
-            finish();
-          }
-        };
-        pc.onicecandidate = (e) => {
-          if (e.candidate) {
-            seenCand = true;
-            clearTimeout(softTimer);
-            softTimer = setTimeout(finish, 600);
-          } else if (seenCand) {
-            clearTimeout(hardTimer);
-            finish();
-          }
-        };
-      });
-    }
-
-    async function createAirplaneOffer(roomId, sessionToken) {
-      activeRoomId = roomId;
-      activeToken = sessionToken;
-      channelKey = deriveChannelKey(roomId, sessionToken);
-      pendingJoinCode = '';
-      airplaneModeActive = true;
-      cleanupMqttPool();
-
-      // Unlock raw local IPv4 host candidates before creating the RTCPeerConnection
-      await unlockLocalIpsViaCamera();
-
-      if (airPendingPc) {
-        try { airPendingPc.close(); } catch (_) {}
-        airPendingPc = null;
-        airPendingDc = null;
-      }
-
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      const dc = pc.createDataChannel('yachti', { ordered: true });
-      airPendingPc = pc;
-      airPendingDc = dc;
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await waitIceGathering(pc, 3000);
-      return compactSdp(pc.localDescription, { r: roomId, k: sessionToken });
-    }
-
-    async function acceptAirplaneOffer(offerCode) {
-      const parsed = expandSdp(offerCode);
-      if (parsed.desc.type !== 'offer') throw new Error('Expected a Host Offer code');
-      if (!parsed.roomId || !parsed.sessionToken) throw new Error('Offer missing room credentials');
-
-      activeRoomId = parsed.roomId;
-      activeToken = parsed.sessionToken;
-      channelKey = deriveChannelKey(activeRoomId, activeToken);
-      pendingJoinCode = '';
-      airplaneModeActive = true;
-      cleanupMqttPool();
-
-      await unlockLocalIpsViaCamera();
-
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      const peerId = 'air_host_' + parsed.remoteShortId;
-      pc.oniceconnectionstatechange = () => handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
-      pc.onconnectionstatechange = () => handlers.onAirplaneState(pc.iceConnectionState, pc.connectionState);
-      pc.ondatachannel = (ev) => attachPeer(peerId, pc, ev.channel, true);
-
-      await pc.setRemoteDescription(new RTCSessionDescription(parsed.desc));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      await waitIceGathering(pc, 3000);
-
-      notifyStatus();
-      const packed = compactSdp(pc.localDescription, {});
-      return {
-        answerCode: packed.code,
-        candCount: packed.candCount,
-        hasIpv4: packed.hasIpv4,
-        ips: packed.ips,
-        remoteIps: parsed.remoteIps,
-        roomId: activeRoomId,
-        sessionToken: activeToken
-      };
-    }
-
-    async function completeAirplaneHost(answerCode) {
-      if (!airPendingPc) throw new Error('Create a Host Offer first');
-      const parsed = expandSdp(answerCode);
-      if (parsed.desc.type !== 'answer') throw new Error('Expected a Guest Answer code');
-      const pc = airPendingPc;
-      const dc = airPendingDc;
-      const peerId = 'air_guest_' + parsed.remoteShortId;
-      airPendingPc = null;
-      airPendingDc = null;
-      attachPeer(peerId, pc, dc, true);
-      await pc.setRemoteDescription(new RTCSessionDescription(parsed.desc));
-      notifyStatus();
-      return { remoteIps: parsed.remoteIps };
     }
 
     // ---- Packet Validation & Dispatch ----
@@ -4457,7 +4179,7 @@
       }
 
       if (pkt.type === 'HELLO' || pkt.type === 'SYNC_REQ') {
-        if (pkt.type === 'HELLO' && !airplaneModeActive && transport === 'mqtt') {
+        if (pkt.type === 'HELLO' && transport === 'mqtt') {
           initiateOnlineWebRTC(pkt.senderId);
         }
         const st = handlers.getFullState();
@@ -4495,7 +4217,7 @@
         try { bc.postMessage(json); } catch (_) {}
       }
 
-      // 2. Direct WebRTC DataChannels (<50ms online / <20ms Airplane PAN)
+      // 2. Direct WebRTC DataChannels (<50ms DTLS-encrypted P2P)
       if (!mqttOnly) {
         for (const rec of peers.values()) {
           if (rec.dc && rec.dc.readyState === 'open') {
@@ -4505,7 +4227,7 @@
       }
 
       // 3. Parallel Multi-Broker MQTT-over-WSS (guarantees delivery across all live relays)
-      if (!airplaneModeActive && channelKey) {
+      if (channelKey) {
         publishOnAllBrokers(`yachti/v1/ch/${channelKey}`, json, retain);
       }
     }
@@ -4518,7 +4240,6 @@
     function requestJoinByCode(roomCode) {
       const code = roomCode.toUpperCase().trim();
       pendingJoinCode = code;
-      airplaneModeActive = false;
       clearInterval(joinRetryTimer);
       clearTimeout(joinTimeoutTimer);
 
@@ -4543,8 +4264,8 @@
       }, 16000);
     }
 
-    function joinChannel(roomId, sessionToken, { isAirplane = false, publishInitial = false } = {}) {
-      const sameRoom = activeRoomId === roomId && activeToken === sessionToken && !!airplaneModeActive === !!isAirplane;
+    function joinChannel(roomId, sessionToken, { publishInitial = false } = {}) {
+      const sameRoom = activeRoomId === roomId && activeToken === sessionToken;
       pendingJoinCode = '';
       clearInterval(joinRetryTimer);
       clearTimeout(joinTimeoutTimer);
@@ -4552,21 +4273,18 @@
       joinTimeoutTimer = null;
 
       if (sameRoom) {
-        if (!isAirplane) {
-          ensureMqttPool();
-          subscribeAllConnectedBrokers();
-          sendHello();
-        }
+        ensureMqttPool();
+        subscribeAllConnectedBrokers();
+        sendHello();
         return;
       }
 
-      if (!isAirplane) closeAllPeers();
+      closeAllPeers();
       if (bc) { try { bc.close(); } catch (_) {} bc = null; }
 
       activeRoomId = roomId;
       activeToken = sessionToken;
       channelKey = (roomId !== 'LOCAL' && sessionToken) ? deriveChannelKey(roomId, sessionToken) : '';
-      airplaneModeActive = !!isAirplane;
 
       if (roomId !== 'LOCAL' && typeof BroadcastChannel !== 'undefined') {
         try {
@@ -4575,8 +4293,8 @@
         } catch (_) {}
       }
 
-      if (roomId !== 'LOCAL' && !airplaneModeActive) {
-        // Reconnect any broker socket that was opened before channelKey was known so MQTT LWT is armed
+      if (roomId !== 'LOCAL') {
+        // Reconnect any broker socket opened before channelKey was known so MQTT LWT is armed
         for (const b of brokerSockets.values()) {
           if (b.ws && b.hasWillFor !== channelKey) {
             try { if (b.ws.readyState === 1) b.ws.send(mqttDisconnectPacket()); b.ws.close(); } catch (_) {}
@@ -4598,7 +4316,6 @@
             }
           }
         }, 420);
-        // Second HELLO nudge in case first arrived before peer finished subscribing
         setTimeout(() => {
           if (activeRoomId === roomId && activeToken === sessionToken && knownDevices.size === 0) {
             sendHello();
@@ -4628,10 +4345,9 @@
           try { rec.dc.send(json); } catch (_) {}
         }
       }
-      if (!airplaneModeActive && channelKey) {
+      if (channelKey) {
         publishOnAllBrokers(`yachti/v1/ch/${channelKey}`, json, false);
         if (clearRetained) {
-          // Empty retained payload clears stale room snapshot on broker
           publishOnAllBrokers(`yachti/v1/ch/${channelKey}`, '', true);
         }
       }
@@ -4645,7 +4361,6 @@
         notifyLeaving({ clearRetained });
       }
       pendingJoinCode = '';
-      airplaneModeActive = false;
       activeRoomId = 'LOCAL';
       activeToken = '';
       channelKey = '';
@@ -4658,12 +4373,8 @@
     function getStatus() {
       const now = Date.now();
       let openRtc = 0;
-      let airRtc = 0;
       for (const rec of peers.values()) {
-        if (rec.dc && rec.dc.readyState === 'open') {
-          openRtc++;
-          if (rec.airplane) airRtc++;
-        }
+        if (rec.dc && rec.dc.readyState === 'open') openRtc++;
       }
       let activePeerCount = openRtc;
       for (const [id, ts] of knownDevices.entries()) {
@@ -4672,15 +4383,6 @@
       const deviceCount = 1 + activePeerCount;
       const connectedBrokers = getConnectedBrokerNames();
 
-      if (airplaneModeActive) {
-        return {
-          kind: airRtc > 0 ? 'airplane' : 'connecting',
-          label: airRtc > 0 ? `✈️ Airplane · ${deviceCount}` : '✈️ Pairing…',
-          deviceCount,
-          openRtc,
-          brokers: []
-        };
-      }
       if (activeRoomId === 'LOCAL') {
         return { kind: 'local', label: 'Local', deviceCount: 1, openRtc: 0, brokers: connectedBrokers };
       }
@@ -4701,24 +4403,9 @@
     function handleWake() {
       if (activeRoomId === 'LOCAL' && !pendingJoinCode) return;
       wakeSuppressUntil = Date.now() + 700;
-      if (!airplaneModeActive) {
-        ensureMqttPool();
-        subscribeAllConnectedBrokers();
-        setTimeout(() => { sendPacket({ type: 'PEER_PING' }); sendHello(); }, 200);
-      } else {
-        for (const rec of peers.values()) {
-          if (rec.dc && rec.dc.readyState === 'open') {
-            sendRawToDc(rec.dc, {
-              type: 'HELLO',
-              roomId: activeRoomId,
-              sessionToken: activeToken,
-              senderId: MY_DEVICE_ID,
-              msgId: 'wh_' + randomHex(4),
-              sentAt: Date.now()
-            });
-          }
-        }
-      }
+      ensureMqttPool();
+      subscribeAllConnectedBrokers();
+      setTimeout(() => { sendPacket({ type: 'PEER_PING' }); sendHello(); }, 200);
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -4726,7 +4413,7 @@
     });
     window.addEventListener('online', handleWake);
     window.addEventListener('focus', () => {
-      if (activeRoomId !== 'LOCAL' && !airplaneModeActive && getConnectedBrokerNames().length === 0) handleWake();
+      if (activeRoomId !== 'LOCAL' && getConnectedBrokerNames().length === 0) handleWake();
     });
 
     function init(h) {
@@ -4741,10 +4428,7 @@
       sendPacket,
       sendHello,
       getStatus,
-      requestJoinByCode,
-      createAirplaneOffer,
-      acceptAirplaneOffer,
-      completeAirplaneHost
+      requestJoinByCode
     };
   })();
 
@@ -5002,19 +4686,18 @@
   let qrScannerCallback = null;
   let editingPlayerIndex = -1;
   let quickPickTarget = null;
-  let lastAirOfferCode = '';
-  let lastAirAnswerCode = '';
   let awaitingRoomSync = false;
   let hostAwaitingPeerForNewGame = false;
-  let activeLinkTab = 'online';
   let lastAnnouncedScoreSeq = 0;
   let setupEditedIndices = new Set();
   let scoreReviewActive = false;
   let scoreReviewTimer = null;
+  let passHandoffActive = false;
 
   function clearScoreReviewPause() {
     if (scoreReviewTimer) { clearTimeout(scoreReviewTimer); scoreReviewTimer = null; }
     scoreReviewActive = false;
+    passHandoffActive = false;
   }
 
   function startScoreReviewPause(durationMs = 3200) {
@@ -5262,8 +4945,8 @@
     if (userViewOverride === 'focus') return true;
     if (userViewOverride === 'all') return false;
     if (state.players.length === 1) return true;
-    // Keep side-by-side All-Players View briefly after bot/opponent scores so you can compare scorecards
-    if (scoreReviewActive) return false;
+    // Keep side-by-side All-Players View during Pass-and-Play handoff or bot/opponent score review
+    if (scoreReviewActive || passHandoffActive) return false;
     // Focus-Aware automatic switching:
     // Focus on active player when it's your turn locally; All-Players when watching a remote player
     return isActivePlayerControllableLocally();
@@ -5626,9 +5309,20 @@
     state.turnState = createFreshTurnState();
 
     const botJustScored = !!player.isAI;
+    const nextPlayer = state.players[state.activePlayerIndex];
+    const isSameDevicePassHandoff = !botJustScored &&
+      state.players.length > 1 &&
+      state.activePlayerIndex !== playerIndex &&
+      nextPlayer && !nextPlayer.isAI &&
+      isActivePlayerControllableLocally();
+
     if (botJustScored && state.players.length > 1) {
       // Hold All-Players side-by-side view for 3.2s so you can clearly see & compare what the Bot scored
       startScoreReviewPause(3200);
+    } else if (isSameDevicePassHandoff) {
+      // Single-device Pass-and-Play: keep All-Players View open until the next player taps Ready or Roll Dice
+      clearScoreReviewPause();
+      passHandoffActive = true;
     } else {
       clearScoreReviewPause();
     }
@@ -5636,7 +5330,7 @@
     broadcastFullState();
     DiceEngine.syncFromState(state.turnState, true);
     renderAll();
-    if (botJustScored) {
+    if (botJustScored || isSameDevicePassHandoff) {
       scrollScoredCellIntoView(player.id, catKey);
     }
     scheduleAiTurnIfNeeded();
@@ -5921,8 +5615,13 @@
       relBtn.classList.add('hidden');
     } else if (rNum === 0) {
       btnRoll.disabled = false;
-      rollLbl.textContent = 'Roll Dice (1 of 3)';
-      hint.textContent = 'Tap Roll to start your turn';
+      if (passHandoffActive && active) {
+        rollLbl.textContent = `Roll for ${active.name} (1 of 3)`;
+        hint.textContent = `Compare scores below, then pass to ${active.name}`;
+      } else {
+        rollLbl.textContent = 'Roll Dice (1 of 3)';
+        hint.textContent = 'Tap Roll to start your turn';
+      }
       hint.classList.remove('hidden');
       relBtn.classList.add('hidden');
     } else if (rNum < 3) {
@@ -5938,6 +5637,16 @@
       hint.textContent = 'Tap any highlighted box below to score';
       hint.classList.remove('hidden');
       relBtn.classList.add('hidden');
+    }
+
+    // Single-Device Pass-and-Play Handoff Strip
+    const handoffStrip = $('passHandoffStrip');
+    if (passHandoffActive && state.gameStatus === 'active' && active && isActivePlayerControllableLocally()) {
+      $('passHandoffText').textContent = `📱 Pass to ${active.name}`;
+      $('btnPassReady').textContent = `Start ${active.name}'s Turn`;
+      handoffStrip.classList.add('visible');
+    } else {
+      handoffStrip.classList.remove('visible');
     }
 
     // Last Scored Feed Strip (stays visible until next commit so bottom-half scores are never missed!)
@@ -6123,6 +5832,10 @@
 
   // ---- Digital Scorecard Validated Quick Picker ----
   function openQuickPicker(pIdx, catKey) {
+    if (passHandoffActive) {
+      passHandoffActive = false;
+      renderAll();
+    }
     const player = state.players[pIdx];
     const cat = ALL_CATS.find(c => c.key === catKey);
     if (!player || !cat) return;
@@ -6461,24 +6174,12 @@
     showToast(`Joined as ${seat.name} — ready to play!`);
   }
 
-  // ---- Link / Invite & ✈️ Airplane Sync Modal ----
-  function openLinkModal(tab = 'online') {
+  // ---- Link / Invite Devices Modal ----
+  function openLinkModal() {
     stopQrScanner();
     $('joinStatusText').classList.add('hidden');
-    switchLinkTab(tab);
     updateSyncModalUI();
     openModal('modalLink');
-  }
-
-  function switchLinkTab(tab) {
-    activeLinkTab = tab === 'airplane' ? 'airplane' : 'online';
-    const isAir = activeLinkTab === 'airplane';
-    $('tabOnlineSync').classList.toggle('active', !isAir);
-    $('tabAirplaneSync').classList.toggle('active', isAir);
-    if ($('qrScannerPanel').classList.contains('hidden')) {
-      $('panelOnlineSync').classList.toggle('hidden', isAir);
-      $('panelAirplaneSync').classList.toggle('hidden', !isAir);
-    }
   }
 
   function updateSyncModalUI() {
@@ -6498,15 +6199,12 @@
       if (st.deviceCount > 1) {
         summary.style.color = 'var(--green-ok)';
         summary.textContent = `● ${st.deviceCount} devices linked live (${st.openRtc > 0 ? 'Direct P2P' : st.brokers.join(' / ') || 'Relay'})`;
-      } else if (st.kind === 'airplane') {
-        summary.style.color = 'var(--sky)';
-        summary.textContent = '✈️ Airplane P2P linked';
       } else if (st.brokers && st.brokers.length > 0) {
         summary.style.color = 'var(--green-ok)';
         summary.textContent = `● Relay online (${st.brokers.join(', ')}) — scan QR or enter code on other device`;
       } else {
         summary.style.color = 'var(--amber)';
-        summary.textContent = '⏳ Connecting to sync relay… (check internet or use ✈️ Airplane Sync)';
+        summary.textContent = '⏳ Connecting to sync relay… (check internet or play Pass-and-Play locally)';
       }
       try {
         QRCodeGen.renderToCanvas($('roomQrCanvas'), buildShareUrl());
@@ -6521,6 +6219,7 @@
   }
 
   function prepareBlankHostedRoomState(roomId, sessionToken) {
+    clearScoreReviewPause();
     cancelAiTurn();
     const prevHumanNames = (state && Array.isArray(state.players))
       ? state.players.filter(p => !p.isAI).map(p => p.name)
@@ -6555,9 +6254,8 @@
     const newRoomId = generateRoomCode();
     const newToken = randomHex(16);
     prepareBlankHostedRoomState(newRoomId, newToken);
-    // Keep URL clean (share/QR uses buildShareUrl()) so closing & reopening the app starts fresh in Local mode
     history.replaceState(null, '', location.pathname);
-    SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false, publishInitial: true });
+    SyncEngine.joinChannel(state.roomId, state.sessionToken, { publishInitial: true });
     updateSyncModalUI();
     showToast(`Room ${state.roomId} created — waiting for players…`);
   }
@@ -6576,15 +6274,7 @@
       return;
     }
 
-    // Case 2: Airplane Sync token pasted directly
-    if (val.startsWith('YAIR:')) {
-      jStatus.classList.add('hidden');
-      switchLinkTab('airplane');
-      handleGuestApplyOffer(val);
-      return;
-    }
-
-    // Case 3: 4-character Room Code
+    // Case 2: 4-character Room Code
     const code = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length === 4) {
       jStatus.textContent = `⏳ Searching relays for Room ${code}…`;
@@ -6598,103 +6288,19 @@
   }
 
   function connectToOnlineRoom(roomId, sessionToken, promptSeat = true) {
+    clearScoreReviewPause();
     state.roomId = roomId;
     state.sessionToken = sessionToken;
     state.commitSeq = 0;
-    state.turnSeq = 0; // Allow authoritative Host state to replace our local stub immediately
+    state.turnSeq = 0;
     awaitingRoomSync = !!promptSeat;
     saveStateLocal();
-    // Strip hash after reading so reopening a closed app does not auto-rejoin an old room
     history.replaceState(null, '', location.pathname);
-    SyncEngine.joinChannel(roomId, sessionToken, { isAirplane: false });
+    SyncEngine.joinChannel(roomId, sessionToken);
     $('joinStatusText').classList.add('hidden');
     closeModal('modalLink');
     updateSyncModalUI();
     showToast(`Connecting to Room ${roomId}…`);
-  }
-
-  // ---- ✈️ Airplane Sync Flows ----
-  async function startAirplaneHost() {
-    $('airGuestBox').classList.add('hidden');
-    $('airHostBox').classList.remove('hidden');
-    $('airStatusText').textContent = 'Unlocking local IP & gathering Bluetooth PAN / Hotspot address…';
-
-    if (state.roomId === 'LOCAL') {
-      prepareBlankHostedRoomState(generateRoomCode(), randomHex(16));
-    }
-    try {
-      const packed = await SyncEngine.createAirplaneOffer(state.roomId, state.sessionToken);
-      lastAirOfferCode = packed.code;
-      QRCodeGen.renderToCanvas($('airOfferQr'), packed.code);
-      const ipInfo = packed.ips && packed.ips.length ? packed.ips.join(', ') : 'none';
-      if (packed.candCount === 0) {
-        $('airStatusText').textContent = '⚠️ 0 local addresses found — turn on Offline Wi-Fi Hotspot (mobile data off) or Bluetooth Tethering, then tap Host again.';
-      } else if (!packed.hasIpv4) {
-        $('airStatusText').textContent = `Offer QR ready (${ipInfo}). ⚠️ No IPv4 seen — try Offline Wi-Fi Hotspot (mobile data off) if link stalls.`;
-      } else {
-        $('airStatusText').textContent = `Offer QR ready (Host IP: ${ipInfo}) — Guest scans now, then tap Step 2.`;
-      }
-    } catch (err) {
-      $('airStatusText').textContent = 'Could not create Airplane Offer: ' + err.message;
-    }
-  }
-
-  function startAirplaneGuest() {
-    $('airHostBox').classList.add('hidden');
-    $('airGuestBox').classList.remove('hidden');
-    $('airGuestStep1').classList.remove('hidden');
-    $('airGuestStep2').classList.add('hidden');
-    $('airStatusText').textContent = 'Scan the Host Offer QR (or paste the Offer code below).';
-  }
-
-  async function handleGuestApplyOffer(codeStr) {
-    const clean = (codeStr || '').trim();
-    if (!clean.startsWith('YAIR:')) {
-      showToast('Invalid Offer code (must start with YAIR:)');
-      return;
-    }
-    $('airStatusText').textContent = 'Building local Answer QR…';
-    try {
-      const res = await SyncEngine.acceptAirplaneOffer(clean);
-      state.roomId = res.roomId;
-      state.sessionToken = res.sessionToken;
-      state.commitSeq = 0;
-      state.turnSeq = 0;
-      awaitingRoomSync = true;
-      saveStateLocal();
-      lastAirAnswerCode = res.answerCode;
-      QRCodeGen.renderToCanvas($('airAnswerQr'), res.answerCode);
-      $('airGuestStep1').classList.add('hidden');
-      $('airGuestStep2').classList.remove('hidden');
-      const myIps = res.ips && res.ips.length ? res.ips.join(', ') : 'none';
-      const hostIps = res.remoteIps && res.remoteIps.length ? res.remoteIps.join(', ') : 'none';
-      if (res.candCount === 0) {
-        $('airStatusText').textContent = `⚠️ 0 local addresses on this phone (Host: ${hostIps}) — check Hotspot / Bluetooth Tethering.`;
-      } else {
-        $('airStatusText').textContent = `Answer QR ready (Guest: ${myIps} ↔ Host: ${hostIps}) — Host scans now.`;
-      }
-    } catch (err) {
-      $('airStatusText').textContent = 'Offer error: ' + err.message;
-      showToast('Could not parse Offer code');
-    }
-  }
-
-  async function handleHostApplyAnswer(codeStr) {
-    const clean = (codeStr || '').trim();
-    if (!clean.startsWith('YAIR:')) {
-      showToast('Invalid Answer code (must start with YAIR:)');
-      return;
-    }
-    $('airStatusText').textContent = 'Connecting direct P2P channel…';
-    try {
-      const res = await SyncEngine.completeAirplaneHost(clean);
-      const guestIps = res && res.remoteIps && res.remoteIps.length ? res.remoteIps.join(', ') : 'none';
-      $('airStatusText').textContent = `✈️ Connecting to Guest (${guestIps})…`;
-      showToast('✈️ Airplane P2P handshake sent!');
-    } catch (err) {
-      $('airStatusText').textContent = 'Answer error: ' + err.message;
-      showToast('Could not apply Answer code');
-    }
   }
 
   // ---- Built-in Camera QR Scanner (BarcodeDetector + Graceful Fallback) ----
@@ -6703,20 +6309,16 @@
     qrScannerCallback = onDecoded;
     const panel = $('qrScannerPanel');
     const msg = $('qrScannerMsg');
-    // Hide tabs/panels while scanning so camera viewfinder sits immediately at top of modal
-    $('linkTabsBar').classList.add('hidden');
     $('panelOnlineSync').classList.add('hidden');
-    $('panelAirplaneSync').classList.add('hidden');
     panel.classList.remove('hidden');
     msg.textContent = 'Starting camera…';
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      msg.textContent = 'Camera unavailable here — please use Copy/Paste code instead.';
+      msg.textContent = 'Camera unavailable here — enter the 4-char Room Code or paste the share link instead.';
       return;
     }
 
     try {
-      // Camera permission also unlocks real local IP ICE candidates for Airplane Sync
       qrScannerStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false
@@ -6726,12 +6328,12 @@
       await video.play();
 
       if (typeof window.BarcodeDetector === 'undefined') {
-        msg.textContent = 'This browser lacks live QR detection — copy/paste the code or scan with your native Camera app.';
+        msg.textContent = 'This browser lacks live QR detection — scan with your phone Camera app or enter the 4-char code.';
         return;
       }
 
       const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-      msg.textContent = 'Point camera steadily at the QR code…';
+      msg.textContent = 'Point camera steadily at the Room QR code…';
 
       const scanLoop = async () => {
         if (!qrScannerStream) return;
@@ -6750,7 +6352,7 @@
       };
       qrScannerRaf = requestAnimationFrame(scanLoop);
     } catch (err) {
-      msg.textContent = 'Camera permission denied — use Copy/Paste code instead.';
+      msg.textContent = 'Camera permission denied — enter the 4-char Room Code or paste the share link instead.';
     }
   }
 
@@ -6763,9 +6365,7 @@
     const video = $('qrVideo');
     if (video) video.srcObject = null;
     $('qrScannerPanel').classList.add('hidden');
-    $('linkTabsBar').classList.remove('hidden');
-    $('panelOnlineSync').classList.toggle('hidden', activeLinkTab === 'airplane');
-    $('panelAirplaneSync').classList.toggle('hidden', activeLinkTab !== 'airplane');
+    $('panelOnlineSync').classList.remove('hidden');
     qrScannerCallback = null;
   }
 
@@ -6892,7 +6492,12 @@
 
     // HUD Buttons
     $('btnMenu').addEventListener('click', () => { updateInstallMenuLabel(); openModal('modalMenu'); });
-    $('btnSyncPill').addEventListener('click', () => openLinkModal('online'));
+    $('btnSyncPill').addEventListener('click', () => openLinkModal());
+    $('btnPassReady').addEventListener('click', () => {
+      passHandoffActive = false;
+      userViewOverride = null;
+      renderAll();
+    });
     $('btnUndo').addEventListener('click', triggerUndo);
     $('btnViewToggle').addEventListener('click', () => {
       const currentlyFocus = shouldShowFocusView();
@@ -7023,8 +6628,7 @@
       }
       showToast(state.mode === '3d' ? 'Switched to 3D Yachti' : 'Switched to Digital Scorecard');
     });
-    $('menuLink').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal('online'); });
-    $('menuAirplane').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal('airplane'); });
+    $('menuLink').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal(); });
     $('menuSeat').addEventListener('click', () => { closeModal('modalMenu'); openSeatPicker(); });
     $('menuRename').addEventListener('click', () => { closeModal('modalMenu'); openEditNameModal(); });
     $('menuAudioToggle').addEventListener('click', () => { Prefs.sound = !Prefs.sound; renderHUDAndControls(); });
@@ -7039,11 +6643,9 @@
     $('setupAiCasual').addEventListener('click', () => { setupDraft.aiLevel = 'casual'; renderSetupModal(); });
     $('setupAiPro').addEventListener('click', () => { setupDraft.aiLevel = 'pro'; renderSetupModal(); });
     $('btnSetupStart').addEventListener('click', applySetupNewGame);
-    $('btnSetupJoinRoom').addEventListener('click', () => { closeModal('modalSetup'); openLinkModal('online'); });
+    $('btnSetupJoinRoom').addEventListener('click', () => { closeModal('modalSetup'); openLinkModal(); });
 
-    // Link / Invite & Airplane Tabs
-    $('tabOnlineSync').addEventListener('click', () => switchLinkTab('online'));
-    $('tabAirplaneSync').addEventListener('click', () => switchLinkTab('airplane'));
+    // Link / Invite Room Controls
     $('btnCreateRoom').addEventListener('click', createLiveRoom);
     $('btnRoomNewGame').addEventListener('click', () => { closeModal('modalLink'); openSetupModal(); });
     $('btnLeaveRoom').addEventListener('click', () => {
@@ -7080,26 +6682,7 @@
     $('inputJoinCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleJoinRoomInput($('inputJoinCode').value); });
     $('btnScanOnlineQr').addEventListener('click', () => startQrScanner((val) => handleJoinRoomInput(val)));
 
-    // Airplane Sync Buttons
-    $('btnAirHost').addEventListener('click', startAirplaneHost);
-    $('btnAirGuest').addEventListener('click', startAirplaneGuest);
-    $('btnCopyAirOffer').addEventListener('click', async () => {
-      if (!lastAirOfferCode) return;
-      try { await navigator.clipboard.writeText(lastAirOfferCode); showToast('Offer code copied!'); } catch (_) {}
-    });
-    $('btnCopyAirAnswer').addEventListener('click', async () => {
-      if (!lastAirAnswerCode) return;
-      try { await navigator.clipboard.writeText(lastAirAnswerCode); showToast('Answer code copied!'); } catch (_) {}
-    });
-    $('btnHostScanAnswer').addEventListener('click', () => startQrScanner((val) => handleHostApplyAnswer(val)));
-    $('btnGuestScanOffer').addEventListener('click', () => startQrScanner((val) => handleGuestApplyOffer(val)));
-    $('btnApplyAirAnswer').addEventListener('click', () => handleHostApplyAnswer($('inputAirAnswer').value));
-    $('btnApplyAirOffer').addEventListener('click', () => handleGuestApplyOffer($('inputAirOffer').value));
     $('btnStopScanner').addEventListener('click', stopQrScanner);
-    $('btnAirPassFallback').addEventListener('click', () => {
-      closeModal('modalLink');
-      openSetupModal();
-    });
 
     // Finish Podium Buttons
     $('btnPlayAgain').addEventListener('click', playAgainSamePlayers);
@@ -7196,12 +6779,8 @@
     SyncEngine.init({
       onPacket: handleRemotePacket,
       onStatusChange: () => updateSyncModalUI(),
-      onPeerConnected: (peerId, transport) => {
+      onPeerConnected: () => {
         updateSyncModalUI();
-        const isAir = transport === 'airplane';
-        if (isAir) {
-          $('airStatusText').textContent = '✈️ Connected! Direct P2P link active.';
-        }
         const gameNotStartedYet = state && state.turnState.rollNumber === 0 &&
           state.players.every(p => ALL_CATS.every(c => p.scores[c.key] === null));
 
@@ -7209,21 +6788,9 @@
           hostAwaitingPeerForNewGame = false;
           closeModal('modalLink');
           openSetupModal();
-          showToast(isAir ? '✈️ Player connected! Set up your new game' : '🔗 Player connected! Set up your new game', 3600);
+          showToast('🔗 Player connected! Set up your new game', 3600);
         } else {
-          showToast(isAir ? '✈️ Airplane P2P linked!' : '🔗 Another player connected to this room!', 3000);
-          if (isAir && !awaitingRoomSync) closeModal('modalLink');
-        }
-      },
-      onAirplaneState: (iceState, connState) => {
-        const el = $('airStatusText');
-        if (!el) return;
-        if (iceState === 'connected' || iceState === 'completed' || connState === 'connected') {
-          el.textContent = '✈️ Direct P2P link locked in — syncing game…';
-        } else if (iceState === 'failed' || connState === 'failed') {
-          el.textContent = '❌ Direct link blocked on this network — switch to Offline Wi-Fi Hotspot (mobile data off) and retry.';
-        } else if (iceState === 'checking') {
-          el.textContent = '✈️ Testing direct local P2P route (ICE checking)…';
+          showToast('🔗 Another player connected to this room!', 3000);
         }
       },
       onPeerLeft: (leaverId) => {
@@ -7266,7 +6833,7 @@
         const jStatus = $('joinStatusText');
         jStatus.style.color = 'var(--red-muted)';
         jStatus.textContent = brokerCount === 0
-          ? 'Could not reach sync relays — check internet or use ✈️ Airplane Sync.'
+          ? 'Could not reach sync relays — check internet or play Pass-and-Play locally.'
           : `Room ${code} did not respond — check the code or scan the QR link instead.`;
         jStatus.classList.remove('hidden');
         showToast(`Could not find Room ${code}`);
@@ -7304,7 +6871,7 @@
       if (hashRoom && state.turnSeq === 0) {
         awaitingRoomSync = true;
       }
-      SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false });
+      SyncEngine.joinChannel(state.roomId, state.sessionToken);
     } else if (!saved) {
       // Fresh first launch: show crisp 1-step setup so user can pick 1-6 players or vs Computer
       openSetupModal();

@@ -28,7 +28,7 @@ Once installed, Yachti launches full-screen and works completely offline.
 
 ---
 
-## Technical Architecture (v1.2.1)
+## Technical Architecture (v1.2.2)
 
 - **Zero External Dependencies:** Single-file static application (`index.html`) with built-in 3D projected dice renderer, Web Audio API sound synthesizer, ISO/IEC 18004 QR code encoder, and camera QR scanner (`BarcodeDetector` with manual paste fallback).
 - **Deterministic Roll Sync:** Active devices broadcast a compact `ROLL_START` payload (`rollId`, `turnSeq`, `rollNumber`, `seed`, `heldMask`, `initialImpulses`, `finalValues`, `startedAt`) so linked devices animate the same trajectory and converge identically.

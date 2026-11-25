@@ -519,8 +519,8 @@
   .score-table thead th {
     position: sticky;
     top: 0;
-    z-index: 6;
-    background: #0d1f18;
+    z-index: 10;
+    background-color: #0d1f18;
     border-bottom: 1px solid var(--border-strong);
     height: 40px;
     font-size: 12px;
@@ -531,8 +531,8 @@
   .score-table th.cat-col, .score-table td.cat-col {
     position: sticky;
     left: 0;
-    z-index: 4;
-    background: var(--bg-panel);
+    z-index: 5;
+    background-color: #10241c;
     width: 138px;
     min-width: 132px;
     max-width: 160px;
@@ -541,8 +541,8 @@
   }
 
   .score-table thead th.cat-col {
-    z-index: 8;
-    background: #0d1f18;
+    z-index: 12;
+    background-color: #0d1f18;
   }
 
   /* Focus mode uses wide full-width single player column */
@@ -592,15 +592,18 @@
     font-weight: 600;
   }
 
+  th.player-col {
+    background-color: #0d1f18;
+  }
   th.player-col.is-active {
-    background: rgba(229, 185, 76, 0.14);
+    background-color: #25301f;
     box-shadow: inset 0 -2px 0 var(--gold);
   }
   th.player-col.is-active .player-th-name { color: var(--gold); }
   th.player-col.is-leader .player-th-sub { color: var(--green-ok); }
 
   td.player-col.is-active {
-    background: rgba(229, 185, 76, 0.035);
+    background-color: #152a21;
   }
 
   .section-row td {
@@ -1316,7 +1319,7 @@
       </div>
     </div>
     <div class="modal-foot">
-      <span class="muted-note">Yachti Engine v1.2.1 · Zero-Sub PWA</span>
+      <span class="muted-note">Yachti Engine v1.2.2 · Zero-Sub PWA</span>
       <button class="btn sm" data-close="modalMenu">Done</button>
     </div>
   </div>
@@ -1587,7 +1590,7 @@
   /* ============================================================================
    * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
    * ============================================================================ */
-  const APP_VERSION = '1.2.1';
+  const APP_VERSION = '1.2.2';
   const STORAGE_STATE_KEY = 'yachti_v1_state';
   const SESSION_ROOM_KEY = 'yachti_v1_room_session';
   const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
@@ -3578,10 +3581,12 @@
     const knownDevices = new Map(); // deviceId -> lastSeenMs
     let wakeSuppressUntil = 0;
 
-    // Pending Airplane handshake state & LWT grace timers
+    // Pending Airplane handshake state, LWT/disconnect grace timers & room peer heartbeat
     let airPendingPc = null;
     let airPendingDc = null;
     const leaveGraceTimers = new Map(); // senderId -> timerId
+    let peerHeartbeatTimer = null;
+    let peerWatchdogTimer = null;
 
     let handlers = {
       onPacket: () => {},
@@ -3642,7 +3647,7 @@
       const proto = encodeUtf8String('MQTT');
       const cid = encodeUtf8String(clientId);
       const flags = will ? 0x06 : 0x02; // cleanSession=1, willFlag=(will?1:0), willQoS=0, willRetain=0
-      const vh = concatU8([proto, new Uint8Array([4, flags, 0, 45])]); // v3.1.1, keepAlive=45s
+      const vh = concatU8([proto, new Uint8Array([4, flags, 0, 15])]); // v3.1.1, keepAlive=15s for fast LWT
       const parts = [vh, cid];
       if (will) {
         parts.push(encodeUtf8String(will.topic));
@@ -3870,7 +3875,7 @@
           if (b.ws === sock && sock.readyState === 1 && b.connected) {
             try { sock.send(mqttPingReqPacket()); } catch (_) {}
           }
-        }, 20000);
+        }, 10000);
       };
 
       sock.onmessage = (ev) => {
@@ -3991,6 +3996,59 @@
       }
     }
 
+    function finalizePeerDeparture(leaverId, isUngraceful) {
+      if (leaveGraceTimers.has(leaverId)) {
+        clearTimeout(leaveGraceTimers.get(leaverId));
+        leaveGraceTimers.delete(leaverId);
+      }
+      const hadPeer = knownDevices.has(leaverId) || peers.has(leaverId);
+      knownDevices.delete(leaverId);
+      closePeer(leaverId);
+      notifyStatus();
+      if (hadPeer && activeRoomId !== 'LOCAL') {
+        handlers.onPeerLeft(leaverId, !!isUngraceful);
+      }
+    }
+
+    function schedulePeerLeaveCheck(peerId, graceMs, probePeer = true) {
+      if (!peerId || activeRoomId === 'LOCAL' || leaveGraceTimers.has(peerId)) return;
+      if (probePeer && !airplaneModeActive) {
+        sendPacket({ type: 'PING_CHECK', targetId: peerId }, { mqttOnly: true });
+      }
+      leaveGraceTimers.set(peerId, setTimeout(() => {
+        finalizePeerDeparture(peerId, true);
+      }, graceMs));
+    }
+
+    function startPeerLivenessLoops() {
+      stopPeerLivenessLoops();
+      if (activeRoomId === 'LOCAL' || !activeToken) return;
+      peerHeartbeatTimer = setInterval(() => {
+        if (activeRoomId === 'LOCAL' || !activeToken) { stopPeerLivenessLoops(); return; }
+        if (document.visibilityState === 'visible') {
+          sendPacket({ type: 'PEER_PING' });
+        }
+      }, 6000);
+
+      peerWatchdogTimer = setInterval(() => {
+        if (activeRoomId === 'LOCAL' || !activeToken) { stopPeerLivenessLoops(); return; }
+        if (document.visibilityState !== 'visible') return;
+        const now = Date.now();
+        for (const [peerId, lastSeen] of knownDevices.entries()) {
+          if (now - lastSeen > 22000 && !leaveGraceTimers.has(peerId)) {
+            schedulePeerLeaveCheck(peerId, 5000, true);
+          }
+        }
+      }, 4000);
+    }
+
+    function stopPeerLivenessLoops() {
+      clearInterval(peerHeartbeatTimer);
+      clearInterval(peerWatchdogTimer);
+      peerHeartbeatTimer = null;
+      peerWatchdogTimer = null;
+    }
+
     function attachPeer(peerId, pc, dc, isAirplane) {
       const rec = { pc, dc, airplane: isAirplane, createdAt: Date.now(), lastSeen: Date.now() };
       peers.set(peerId, rec);
@@ -4000,6 +4058,7 @@
           const wasKnown = knownDevices.has(peerId);
           knownDevices.set(peerId, Date.now());
           if (isAirplane) airplaneModeActive = true;
+          startPeerLivenessLoops();
           notifyStatus();
           if (!wasKnown || isAirplane) handlers.onPeerConnected(peerId, isAirplane ? 'airplane' : 'webrtc');
 
@@ -4033,12 +4092,19 @@
         dc.onclose = () => {
           closePeer(peerId);
           notifyStatus();
+          // Fast departure check when P2P DataChannel drops (e.g. mobile app swipe-kill)
+          if (activeRoomId !== 'LOCAL' && knownDevices.has(peerId)) {
+            schedulePeerLeaveCheck(peerId, isAirplane ? 4000 : 5000, !isAirplane);
+          }
         };
       }
       pc.onconnectionstatechange = () => {
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           closePeer(peerId);
           notifyStatus();
+          if (activeRoomId !== 'LOCAL' && knownDevices.has(peerId)) {
+            schedulePeerLeaveCheck(peerId, isAirplane ? 4000 : 5000, !isAirplane);
+          }
         }
       };
     }
@@ -4295,29 +4361,16 @@
       // Handle explicit or LWT PEER_LEAVE before refreshing knownDevices
       if (pkt.type === 'PEER_LEAVE') {
         const leaverId = pkt.senderId;
-        const finalizeLeave = () => {
-          leaveGraceTimers.delete(leaverId);
-          knownDevices.delete(leaverId);
-          closePeer(leaverId);
-          notifyStatus();
-          handlers.onPeerLeft(leaverId, !!pkt.isWill);
-        };
         if (pkt.isWill) {
-          // Ungraceful socket drop (e.g., swiped PWA closed or brief signal drop): wait 8s before confirming departure
-          if (!leaveGraceTimers.has(leaverId)) {
-            leaveGraceTimers.set(leaverId, setTimeout(finalizeLeave, 8000));
-          }
+          // Ungraceful socket drop / bfcache hide: probe peer and confirm departure after 4s of silence
+          schedulePeerLeaveCheck(leaverId, 4000, true);
         } else {
-          if (leaveGraceTimers.has(leaverId)) {
-            clearTimeout(leaveGraceTimers.get(leaverId));
-            leaveGraceTimers.delete(leaverId);
-          }
-          finalizeLeave();
+          finalizePeerDeparture(leaverId, false);
         }
         return;
       }
 
-      // Any non-leave packet from a peer cancels a pending LWT grace timer
+      // Any non-leave packet from a peer proves it is alive and cancels any pending departure timer
       if (leaveGraceTimers.has(pkt.senderId)) {
         clearTimeout(leaveGraceTimers.get(pkt.senderId));
         leaveGraceTimers.delete(pkt.senderId);
@@ -4325,6 +4378,19 @@
 
       const wasKnown = knownDevices.has(pkt.senderId);
       knownDevices.set(pkt.senderId, Date.now());
+
+      if (pkt.type === 'PEER_PING') {
+        if (!wasKnown) { notifyStatus(); handlers.onPeerConnected(pkt.senderId, transport); }
+        return;
+      }
+      if (pkt.type === 'PING_CHECK') {
+        if (!pkt.targetId || pkt.targetId === MY_DEVICE_ID) {
+          sendPacket({ type: 'PEER_PING' });
+        }
+        if (!wasKnown) { notifyStatus(); handlers.onPeerConnected(pkt.senderId, transport); }
+        return;
+      }
+
       notifyStatus();
       if (!wasKnown) handlers.onPeerConnected(pkt.senderId, transport);
 
@@ -4463,6 +4529,7 @@
           }
         }
         ensureMqttPool();
+        startPeerLivenessLoops();
         subscribeAllConnectedBrokers();
         setTimeout(() => {
           if (activeRoomId === roomId && activeToken === sessionToken) {
@@ -4486,14 +4553,14 @@
       notifyStatus();
     }
 
-    function notifyLeaving({ clearRetained = false } = {}) {
+    function notifyLeaving({ clearRetained = false, isWill = false } = {}) {
       if (activeRoomId === 'LOCAL' || !activeToken) return;
       const pkt = {
         type: 'PEER_LEAVE',
         roomId: activeRoomId,
         sessionToken: activeToken,
         senderId: MY_DEVICE_ID,
-        isWill: false,
+        isWill: !!isWill,
         msgId: 'lv_' + randomHex(4),
         sentAt: Date.now()
       };
@@ -4514,6 +4581,7 @@
     }
 
     function disconnect({ announceLeave = true, clearRetained = false } = {}) {
+      stopPeerLivenessLoops();
       for (const tid of leaveGraceTimers.values()) clearTimeout(tid);
       leaveGraceTimers.clear();
       if (announceLeave && activeRoomId !== 'LOCAL' && activeToken) {
@@ -4579,7 +4647,7 @@
       if (!airplaneModeActive) {
         ensureMqttPool();
         subscribeAllConnectedBrokers();
-        setTimeout(() => sendHello(), 250);
+        setTimeout(() => { sendPacket({ type: 'PEER_PING' }); sendHello(); }, 200);
       } else {
         for (const rec of peers.values()) {
           if (rec.dc && rec.dc.readyState === 'open') {
@@ -4884,6 +4952,32 @@
   let activeLinkTab = 'online';
   let lastAnnouncedScoreSeq = 0;
   let setupEditedIndices = new Set();
+  let scoreReviewActive = false;
+  let scoreReviewTimer = null;
+
+  function clearScoreReviewPause() {
+    if (scoreReviewTimer) { clearTimeout(scoreReviewTimer); scoreReviewTimer = null; }
+    scoreReviewActive = false;
+  }
+
+  function startScoreReviewPause(durationMs = 3200) {
+    clearScoreReviewPause();
+    if (!state || state.players.length <= 1 || state.gameStatus !== 'active') return;
+    scoreReviewActive = true;
+    scoreReviewTimer = setTimeout(() => {
+      scoreReviewTimer = null;
+      scoreReviewActive = false;
+      renderAll();
+    }, durationMs);
+  }
+
+  function scrollScoredCellIntoView(playerId, catKey) {
+    if (!playerId || !catKey) return;
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-scored-cell="${playerId}:${catKey}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
 
   // Setup modal temporary selections & AI turn runner
   let setupDraft = { mode: '3d', vsComputer: false, aiLevel: 'pro', aiName: 'Yachti Bot', count: 2, names: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'] };
@@ -5072,10 +5166,47 @@
     return false;
   }
 
+  function isPlayerLocalOnThisDevice(player) {
+    if (!player) return false;
+    if (!state || state.roomId === 'LOCAL') return true;
+    if (player.isAI) return isLocalAiOwner(player);
+    if (player.claimedByDeviceId === MY_DEVICE_ID) return true;
+    if (player.claimedByDeviceId === null) return true; // Local hosted / unclaimed pass-and-play seat
+    return false;
+  }
+
+  /**
+   * Strict Undo permission rule:
+   * - Local/solo/pass-and-play/vs-Bot games: available whenever undoStack is non-empty.
+   * - Multi-device rooms: a player may ONLY undo their own action (or an action by a local
+   *   player sharing the same device), NEVER another player's action from a remote device —
+   *   and once a remote player starts rolling on their device, undo locks out.
+   */
+  function canUseUndoLocally() {
+    if (!state || !Array.isArray(state.undoStack) || state.undoStack.length === 0) return false;
+    if (state.roomId === 'LOCAL') return true;
+
+    const topSnap = state.undoStack[state.undoStack.length - 1];
+    const snapPlayer = topSnap && topSnap.playersSnapshot && topSnap.playersSnapshot[topSnap.activePlayerIndex];
+
+    // Verify the most recent score commit originated from this device or a local same-device player
+    const belongsToThisDevice = topSnap && topSnap.committedByDeviceId
+      ? (topSnap.committedByDeviceId === MY_DEVICE_ID)
+      : isPlayerLocalOnThisDevice(snapPlayer);
+    if (!belongsToThisDevice) return false;
+
+    // Allow undo if it is still a same-device player's turn OR the remote next player hasn't rolled yet
+    if (state.gameStatus === 'finished') return true;
+    if (isActivePlayerControllableLocally()) return true;
+    return state.turnState.rollNumber === 0;
+  }
+
   function shouldShowFocusView() {
     if (userViewOverride === 'focus') return true;
     if (userViewOverride === 'all') return false;
     if (state.players.length === 1) return true;
+    // Keep side-by-side All-Players View briefly after bot/opponent scores so you can compare scorecards
+    if (scoreReviewActive) return false;
     // Focus-Aware automatic switching:
     // Focus on active player when it's your turn locally; All-Players when watching a remote player
     return isActivePlayerControllableLocally();
@@ -5169,20 +5300,22 @@
 
     if (wasInitialJoin) awaitingRoomSync = false;
 
+    const lse = state.lastScoredEvent;
+    const isFreshRemoteScore = !wasInitialJoin && lse && lse.commitSeq > lastAnnouncedScoreSeq;
+    if (isFreshRemoteScore && state.gameStatus === 'active' && state.players.length > 1) {
+      // Hold side-by-side All-Players View briefly so player can compare opponent's new score before Focus View
+      startScoreReviewPause(3200);
+    }
+
     cancelAiTurn();
     renderAll();
 
     // Announce opponent's score clearly even if scrolled to a different section of the scorecard!
-    const lse = state.lastScoredEvent;
-    if (!wasInitialJoin && lse && lse.commitSeq > lastAnnouncedScoreSeq) {
+    if (isFreshRemoteScore) {
       lastAnnouncedScoreSeq = lse.commitSeq;
       const bTxt = lse.grantYachtiBonus ? ' (+100 Yachti Bonus!)' : '';
       showToast(`📝 ${lse.playerName} scored ${lse.score} in ${lse.catLabel}${bTxt}`, 3800);
-      // Scroll newly scored cell into view when watching All-Players view
-      if (!shouldShowFocusView()) {
-        const el = document.querySelector(`[data-scored-cell="${lse.playerId}:${lse.catKey}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+      scrollScoredCellIntoView(lse.playerId, lse.catKey);
     }
 
     if (state.gameStatus === 'finished') {
@@ -5243,6 +5376,7 @@
 
   function triggerRoll() {
     if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return;
+    clearScoreReviewPause();
     if (!isActivePlayerControllableLocally()) {
       const act = state.players[state.activePlayerIndex];
       showToast(act && act.isAI ? `${act.name} is taking its turn…` : `Waiting for ${act ? act.name : 'player'}`);
@@ -5291,7 +5425,7 @@
       queueAiStep(runId, 760, () => {
         if (state.activePlayerIndex !== activeIdx || state.gameStatus !== 'active') return;
         const bonusTxt = pick.grantsBonus ? ' (+100 Bonus!)' : '';
-        showToast(`🤖 ${active.name} scored ${pick.score} in ${pick.label}${bonusTxt}`, 2600);
+        showToast(`🤖 ${active.name} scored ${pick.score} in ${pick.label}${bonusTxt}`, 3400);
         commitScore(activeIdx, pick.catKey, pick.score, { grantYachtiBonus: pick.grantsBonus });
       });
       return;
@@ -5382,6 +5516,7 @@
       turnSeq: state.turnSeq,
       roundNumber: state.roundNumber,
       activePlayerIndex: state.activePlayerIndex,
+      committedByDeviceId: MY_DEVICE_ID,
       playersSnapshot: deepClone(state.players),
       turnStateSnapshot: compactTurnSnap
     });
@@ -5433,9 +5568,20 @@
     state.roundNumber = computeNextRound(state.players);
     state.turnState = createFreshTurnState();
 
+    const botJustScored = !!player.isAI;
+    if (botJustScored && state.players.length > 1) {
+      // Hold All-Players side-by-side view for 3.2s so you can clearly see & compare what the Bot scored
+      startScoreReviewPause(3200);
+    } else {
+      clearScoreReviewPause();
+    }
+
     broadcastFullState();
     DiceEngine.syncFromState(state.turnState, true);
     renderAll();
+    if (botJustScored) {
+      scrollScoredCellIntoView(player.id, catKey);
+    }
     scheduleAiTurnIfNeeded();
   }
 
@@ -5447,9 +5593,11 @@
       return;
     }
     state.undoStack.push({
+      commitSeq: state.commitSeq || 1,
       turnSeq: state.turnSeq,
       roundNumber: state.roundNumber,
       activePlayerIndex: state.activePlayerIndex,
+      committedByDeviceId: MY_DEVICE_ID,
       playersSnapshot: deepClone(state.players),
       turnStateSnapshot: deepClone(state.turnState)
     });
@@ -5465,7 +5613,13 @@
   }
 
   function triggerUndo() {
-    if (!state || !state.undoStack || state.undoStack.length === 0) return;
+    if (!canUseUndoLocally()) {
+      if (state && state.undoStack && state.undoStack.length > 0) {
+        showToast('You can only undo your own score');
+      }
+      return;
+    }
+    clearScoreReviewPause();
     cancelAiTurn();
     let snap = state.undoStack.pop();
     // In vs-Computer games, if the latest commit was the Computer's turn, step back to the human's turn so the player can fix their move cleanly
@@ -5496,6 +5650,7 @@
 
   function playAgainSamePlayers() {
     if (!state) return;
+    clearScoreReviewPause();
     cancelAiTurn();
     const keptPlayers = state.players.map(p => ({
       id: p.id,
@@ -5616,7 +5771,13 @@
     const isScorecardOnly = state.mode === 'scorecard';
 
     $('workspace').classList.toggle('scorecard-only', isScorecardOnly);
-    $('btnUndo').disabled = !state.undoStack || state.undoStack.length === 0;
+    const undoAllowed = canUseUndoLocally();
+    $('btnUndo').disabled = !undoAllowed;
+    $('btnUndo').title = undoAllowed
+      ? 'Undo your last score (Ctrl+Z)'
+      : (state.undoStack && state.undoStack.length > 0
+        ? 'Only the player who scored can undo'
+        : 'Nothing to undo');
 
     // View toggle pill
     const focus = shouldShowFocusView();
@@ -6056,6 +6217,7 @@
   }
 
   function applySetupNewGame() {
+    clearScoreReviewPause();
     cancelAiTurn();
     hostAwaitingPeerForNewGame = false;
     const keepRoom = state && state.roomId !== 'LOCAL';
@@ -6671,6 +6833,7 @@
     $('btnUndo').addEventListener('click', triggerUndo);
     $('btnViewToggle').addEventListener('click', () => {
       const currentlyFocus = shouldShowFocusView();
+      clearScoreReviewPause();
       userViewOverride = currentlyFocus ? 'all' : 'focus';
       renderAll();
     });
@@ -6997,6 +7160,8 @@
 
         if (humanCount <= 2) {
           // 2-player room: closing the app disconnects the room completely so a fresh room is established next time
+          hostAwaitingPeerForNewGame = false;
+          clearScoreReviewPause();
           SyncEngine.disconnect({ announceLeave: false, clearRetained: true });
           state.roomId = 'LOCAL';
           state.sessionToken = randomHex(16);
@@ -7042,11 +7207,18 @@
       }
     });
 
-    // Announce departure when tab/PWA is closed so 2-player rooms close automatically & 3+ rooms release that seat
-    window.addEventListener('pagehide', (ev) => {
-      if (!ev.persisted && state && state.roomId !== 'LOCAL') {
+    // Announce departure on tab/PWA close (even when mobile bfcache sets ev.persisted=true!)
+    const announceAppExit = (isPersisted) => {
+      if (state && state.roomId !== 'LOCAL') {
         const humanCount = state.players.filter(p => !p.isAI).length;
-        SyncEngine.notifyLeaving({ clearRetained: humanCount <= 2 });
+        SyncEngine.notifyLeaving({ clearRetained: !isPersisted && humanCount <= 2, isWill: !!isPersisted });
+      }
+    };
+    window.addEventListener('pagehide', (ev) => announceAppExit(ev.persisted));
+    window.addEventListener('beforeunload', () => announceAppExit(false));
+    window.addEventListener('pageshow', (ev) => {
+      if (ev.persisted && state && state.roomId !== 'LOCAL') {
+        SyncEngine.sendPacket({ type: 'PEER_PING' });
       }
     });
 

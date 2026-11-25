@@ -1,0 +1,5586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f221b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Yachti">
+<meta name="description" content="Yachti — Mobile-first 3D dice game and live synced scorecard with offline & Airplane P2P sync.">
+<title>Yachti</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<style>
+  :root {
+    --vvh: 100dvh;
+    --vvw: 100vw;
+    --bg-deep: #091510;
+    --bg-panel: #10241c;
+    --bg-card: #142c23;
+    --bg-card-alt: #18342a;
+    --bg-elev: #1d3e32;
+    --felt-dark: #0e3425;
+    --felt-mid: #144934;
+    --wood-rail: #5c3a21;
+    --wood-dark: #3b2312;
+    --gold: #e5b94c;
+    --gold-dim: rgba(229, 185, 76, 0.2);
+    --green-ok: #34d399;
+    --green-soft: rgba(52, 211, 153, 0.16);
+    --red-muted: #f87171;
+    --red-soft: rgba(248, 113, 113, 0.13);
+    --amber: #fbbf24;
+    --sky: #38bdf8;
+    --text-main: #f3f7f4;
+    --text-muted: #9ab3a8;
+    --text-dim: #6c877c;
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: var(--vvh);
+    overflow: hidden;
+    background: var(--bg-deep);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.35;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input, textarea, select {
+    user-select: text;
+    -webkit-user-select: text;
+    font-family: inherit;
+  }
+
+  button {
+    font-family: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    touch-action: manipulation;
+  }
+
+  button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+  }
+
+  /* Main App Shell */
+  #app {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: var(--vvh);
+    max-width: 980px;
+    margin: 0 auto;
+    position: relative;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Minimalist Top HUD */
+  .hud {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    z-index: 20;
+    min-height: 48px;
+  }
+
+  .hud-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0 9px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    transition: background 0.14s, transform 0.08s, border-color 0.14s;
+    white-space: nowrap;
+  }
+
+  .hud-btn:active:not(:disabled) {
+    transform: scale(0.96);
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .hud-btn.active {
+    background: var(--gold-dim);
+    border-color: rgba(229, 185, 76, 0.55);
+    color: var(--gold);
+  }
+
+  .hud-btn.icon-only {
+    padding: 0;
+    width: 34px;
+  }
+
+  .brand-title {
+    font-weight: 800;
+    font-size: 16px;
+    letter-spacing: 0.03em;
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 2px;
+  }
+
+  .sync-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    max-width: 175px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sync-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .sync-pill.live .sync-dot {
+    background: var(--green-ok);
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+  }
+
+  .sync-pill.airplane .sync-dot {
+    background: var(--sky);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+  }
+
+  .sync-pill.connecting .sync-dot {
+    background: var(--amber);
+    animation: pulseDot 1.1s infinite;
+  }
+
+  @keyframes pulseDot {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  .hud-spacer {
+    flex: 1 1 auto;
+  }
+
+  /* Main Workspace Split (Mobile Portrait Stacked / Desktop Side-by-Side) */
+  .workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .workspace.scorecard-only .arena-section {
+    display: none;
+  }
+
+  /* Turn Banner / Status Strip */
+  .turn-strip {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 12px;
+    background: #0d1d16;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+    min-height: 34px;
+  }
+
+  .turn-who {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .turn-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--gold-dim);
+    color: var(--gold);
+    flex-shrink: 0;
+  }
+
+  .turn-badge.watching {
+    background: rgba(56, 189, 248, 0.16);
+    color: var(--sky);
+  }
+
+  .turn-player-name {
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .turn-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .override-btn {
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.14);
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    color: var(--amber);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* Joker Alert Strip */
+  .joker-strip {
+    flex: 0 0 auto;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: linear-gradient(90deg, rgba(229, 185, 76, 0.22), rgba(52, 211, 153, 0.18));
+    border-bottom: 1px solid rgba(229, 185, 76, 0.4);
+    color: #fde68a;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .joker-strip.visible { display: flex; }
+
+  /* 3D Dice Arena + Docked Side Reserve Bar */
+  .arena-section {
+    flex: 0 0 auto;
+    height: clamp(205px, 34vh, 290px);
+    padding: 8px 10px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tray-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    border-radius: 14px;
+    background: linear-gradient(145deg, var(--wood-rail), var(--wood-dark));
+    padding: 5px;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.16), 0 6px 18px rgba(0,0,0,0.45);
+    display: flex;
+    overflow: hidden;
+  }
+
+  #diceCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 10px;
+    touch-action: none;
+    cursor: grab;
+  }
+
+  #diceCanvas:active {
+    cursor: grabbing;
+  }
+
+  .tray-hint {
+    position: absolute;
+    left: 14px;
+    bottom: 11px;
+    pointer-events: none;
+    background: rgba(9, 21, 16, 0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #d6e6de;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.2s;
+  }
+
+  .tray-hint.hidden { opacity: 0; }
+
+  .arena-controls {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .roll-btn {
+    flex: 1 1 auto;
+    height: 40px;
+    border-radius: 11px;
+    background: linear-gradient(180deg, #eec65d 0%, #c99728 100%);
+    color: #161004;
+    font-size: 14.5px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    box-shadow: 0 3px 12px rgba(229, 185, 76, 0.28), inset 0 1px 0 rgba(255,255,255,0.45);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform 0.08s, filter 0.15s;
+  }
+
+  .roll-btn:active:not(:disabled) {
+    transform: scale(0.985);
+    filter: brightness(0.95);
+  }
+
+  .roll-btn:disabled {
+    background: #233b31;
+    color: #7d968b;
+    box-shadow: none;
+  }
+
+  .roll-pips {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .roll-pip {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(22, 16, 4, 0.28);
+  }
+  .roll-pip.used { background: #161004; }
+  .roll-btn:disabled .roll-pip { background: rgba(255,255,255,0.18); }
+  .roll-btn:disabled .roll-pip.used { background: var(--gold); }
+
+  .release-all-btn {
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* Focus-Aware Unified Scorecard */
+  .scorecard-section {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    overflow: hidden;
+  }
+
+  .scorecard-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table.score-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+  }
+
+  .score-table th, .score-table td {
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    padding: 0;
+    vertical-align: middle;
+  }
+
+  .score-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    background: #0d1f18;
+    border-bottom: 1px solid var(--border-strong);
+    height: 40px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .score-table th.cat-col, .score-table td.cat-col {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    background: var(--bg-panel);
+    width: 138px;
+    min-width: 132px;
+    max-width: 160px;
+    text-align: left;
+    padding: 0 10px;
+  }
+
+  .score-table thead th.cat-col {
+    z-index: 8;
+    background: #0d1f18;
+  }
+
+  /* Focus mode uses wide full-width single player column */
+  .score-table.focus-mode th.cat-col,
+  .score-table.focus-mode td.cat-col {
+    width: 56%;
+    max-width: none;
+  }
+  .score-table.focus-mode th.player-col,
+  .score-table.focus-mode td.player-col {
+    width: 44%;
+  }
+
+  .score-table.all-mode th.player-col,
+  .score-table.all-mode td.player-col {
+    min-width: 74px;
+  }
+
+  .player-th-btn {
+    width: 100%;
+    height: 100%;
+    padding: 3px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    line-height: 1.15;
+  }
+
+  .player-th-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-main);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .player-th-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  th.player-col.is-active {
+    background: rgba(229, 185, 76, 0.14);
+    box-shadow: inset 0 -2px 0 var(--gold);
+  }
+  th.player-col.is-active .player-th-name { color: var(--gold); }
+  th.player-col.is-leader .player-th-sub { color: var(--green-ok); }
+
+  td.player-col.is-active {
+    background: rgba(229, 185, 76, 0.035);
+  }
+
+  .section-row td {
+    background: #0c1a14 !important;
+    color: var(--gold);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 10px !important;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .cat-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    height: 36px;
+  }
+
+  .cat-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cat-hint {
+    font-size: 10.5px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .summary-row td {
+    background: #10261d !important;
+    height: 32px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .summary-row.grand-row td {
+    background: #153428 !important;
+    height: 38px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--gold);
+    border-top: 1px solid rgba(229, 185, 76, 0.35);
+  }
+
+  .summary-val {
+    text-align: center;
+    padding: 0 6px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .par-pill {
+    display: inline-block;
+    margin-left: 5px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .par-pill.good { background: var(--green-soft); color: var(--green-ok); }
+  .par-pill.behind { background: rgba(251, 191, 36, 0.16); color: var(--amber); }
+
+  /* Score Cell Buttons */
+  .cell-btn {
+    width: 100%;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    transition: background 0.12s;
+  }
+
+  .cell-btn.filled {
+    color: var(--text-main);
+    cursor: default;
+  }
+
+  .cell-btn.filled.zero {
+    color: var(--text-dim);
+    text-decoration: line-through;
+  }
+
+  .cell-btn.preview-pos {
+    background: var(--green-soft);
+    color: var(--green-ok);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    border-radius: 6px;
+    margin: 2px 4px;
+    width: calc(100% - 8px);
+    height: 32px;
+  }
+  .cell-btn.preview-pos:active { background: rgba(52, 211, 153, 0.32); }
+
+  .cell-btn.preview-zero {
+    background: var(--red-soft);
+    color: var(--red-muted);
+    border: 1px dashed rgba(248, 113, 113, 0.35);
+    border-radius: 6px;
+    margin: 2px 4px;
+    width: calc(100% - 8px);
+    height: 32px;
+    font-size: 12.5px;
+  }
+  .cell-btn.preview-zero:active { background: rgba(248, 113, 113, 0.26); }
+
+  .cell-btn.preview-joker {
+    background: linear-gradient(90deg, rgba(229, 185, 76, 0.25), rgba(52, 211, 153, 0.25));
+    color: #fef08a;
+    border: 1px solid rgba(229, 185, 76, 0.65);
+    border-radius: 6px;
+    margin: 2px 4px;
+    width: calc(100% - 8px);
+    height: 32px;
+  }
+
+  .cell-btn.manual-open {
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--text-muted);
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    margin: 2px 4px;
+    width: calc(100% - 8px);
+    height: 32px;
+    font-size: 12px;
+  }
+  .cell-btn.manual-open:active { background: rgba(255, 255, 255, 0.12); }
+
+  .cell-btn.empty-idle {
+    color: rgba(255, 255, 255, 0.16);
+    cursor: default;
+  }
+
+  .cell-btn.joker-locked {
+    color: rgba(255, 255, 255, 0.14);
+    cursor: not-allowed;
+  }
+
+  .yb-btn {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(229, 185, 76, 0.45);
+    color: var(--gold);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  /* Desktop / Wide Landscape Split Layout */
+  @media (min-width: 780px) {
+    .workspace:not(.scorecard-only) {
+      flex-direction: row;
+    }
+    .arena-section {
+      flex: 0 0 46%;
+      height: auto;
+      border-bottom: none;
+      border-right: 1px solid var(--border);
+      padding: 12px;
+    }
+    .scorecard-section {
+      flex: 1 1 54%;
+    }
+    .cat-label { height: 34px; }
+    .cell-btn { height: 34px; }
+  }
+
+  /* Viewport-Contained Modals & Floating Surfaces */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    height: var(--vvh);
+    width: var(--vvw);
+    background: rgba(4, 11, 8, 0.76);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    z-index: 100;
+  }
+
+  .modal-backdrop.open {
+    display: flex;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: 440px;
+    max-height: calc(var(--vvh) - 24px);
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.16);
+  }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .modal-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.07);
+    color: var(--text-muted);
+    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .modal-foot {
+    flex: 0 0 auto;
+    padding: 11px 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  /* Reusable Controls inside Modals */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--border-strong);
+    color: var(--text-main);
+    transition: background 0.12s, transform 0.08s;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn.primary {
+    background: linear-gradient(180deg, #eec65d 0%, #c99728 100%);
+    border-color: transparent;
+    color: #161004;
+  }
+  .btn.emerald {
+    background: rgba(52, 211, 153, 0.18);
+    border-color: rgba(52, 211, 153, 0.45);
+    color: var(--green-ok);
+  }
+  .btn.danger {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.4);
+    color: var(--red-muted);
+  }
+  .btn.full { width: 100%; }
+  .btn.sm { min-height: 33px; padding: 0 11px; font-size: 12.5px; }
+
+  .field-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  .text-input, .text-area {
+    width: 100%;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    color: var(--text-main);
+    padding: 9px 11px;
+    font-size: 14px;
+    outline: none;
+  }
+  .text-input:focus, .text-area:focus {
+    border-color: var(--gold);
+  }
+  .text-area {
+    min-height: 76px;
+    resize: vertical;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+  }
+
+  .seg-group {
+    display: flex;
+    background: rgba(0,0,0,0.26);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+  }
+
+  .seg-btn {
+    flex: 1 1 0;
+    height: 34px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .seg-btn.active {
+    background: var(--gold-dim);
+    color: var(--gold);
+    border: 1px solid rgba(229, 185, 76, 0.4);
+  }
+
+  .count-pills {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+  }
+  .count-pill {
+    height: 38px;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .count-pill.active {
+    background: var(--gold);
+    color: #161004;
+    border-color: var(--gold);
+  }
+
+  .player-inputs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+  }
+
+  .menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 13px;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+  .menu-item:active { background: rgba(255,255,255,0.1); }
+  .menu-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .menu-item-title { font-weight: 700; font-size: 14px; }
+  .menu-item-sub { font-size: 11.5px; color: var(--text-muted); }
+
+  /* Room Pairing & QR Display */
+  .room-code-box {
+    text-align: center;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--border-strong);
+  }
+  .room-code-big {
+    font-family: var(--font-mono);
+    font-size: 34px;
+    font-weight: 900;
+    letter-spacing: 0.24em;
+    color: var(--gold);
+    padding-left: 0.24em;
+  }
+
+  .qr-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #ffffff;
+    border-radius: 12px;
+    margin: 0 auto;
+    max-width: 264px;
+    width: 100%;
+  }
+  .qr-wrap canvas {
+    width: 100%;
+    height: auto;
+    max-width: 240px;
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  .checklist-box {
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    border-radius: 11px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    color: #dbeafe;
+  }
+  .checklist-box ol {
+    margin: 5px 0 0 18px;
+    padding: 0;
+  }
+  .checklist-box li { margin-bottom: 4px; }
+
+  .scanner-box {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #000;
+    border-radius: 11px;
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+  }
+  .scanner-box video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .scanner-reticle {
+    position: absolute;
+    inset: 16%;
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+
+  /* Quick Score Picker Grid (Digital Scorecard Mode) */
+  .picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .picker-grid.dense {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .picker-opt {
+    height: 44px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid var(--border-strong);
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-main);
+  }
+  .picker-opt.zero-opt {
+    background: var(--red-soft);
+    border-color: rgba(248, 113, 113, 0.4);
+    color: var(--red-muted);
+  }
+  .picker-opt.good-opt {
+    background: var(--green-soft);
+    border-color: rgba(52, 211, 153, 0.45);
+    color: var(--green-ok);
+  }
+
+  /* Final Rankings Podium */
+  .podium-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .podium-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+  }
+  .podium-row.rank-1 {
+    background: linear-gradient(90deg, rgba(229, 185, 76, 0.22), rgba(229, 185, 76, 0.06));
+    border-color: rgba(229, 185, 76, 0.55);
+  }
+  .podium-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .podium-medal {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 13px;
+  }
+  .podium-row.rank-1 .podium-medal { background: var(--gold); color: #161004; }
+  .podium-badges {
+    display: flex;
+    gap: 5px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+  }
+  .mini-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--green-soft);
+    color: var(--green-ok);
+  }
+  .mini-badge.gold { background: var(--gold-dim); color: var(--gold); }
+  .podium-score {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%) translateY(20px);
+    background: #0c1f17;
+    border: 1px solid rgba(229, 185, 76, 0.5);
+    color: var(--text-main);
+    padding: 9px 15px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 200;
+    max-width: calc(var(--vvw) - 24px);
+    text-align: center;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .muted-note {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .row-gap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .row-gap > * { flex: 1 1 0; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Minimalist Top HUD -->
+  <header class="hud">
+    <button id="btnMenu" class="hud-btn icon-only" aria-label="Main Menu" title="Menu">☰</button>
+    <div class="brand-title">🎲 Yachti</div>
+    <button id="btnSyncPill" class="sync-pill" title="Link or Sync Devices">
+      <span class="sync-dot"></span>
+      <span id="syncPillText">Local</span>
+    </button>
+    <div class="hud-spacer"></div>
+    <button id="btnUndo" class="hud-btn" title="Undo last score (Ctrl+Z)" disabled>↩ Undo</button>
+    <button id="btnViewToggle" class="hud-btn" title="Toggle My Card / All Players (Tab)">All</button>
+    <button id="btnMute" class="hud-btn icon-only" aria-label="Toggle Sound & Haptics" title="Sound & Haptics">🔊</button>
+  </header>
+
+  <!-- Active Turn Strip -->
+  <div class="turn-strip">
+    <div class="turn-who">
+      <span id="turnBadge" class="turn-badge">Your Turn</span>
+      <span id="turnPlayerName" class="turn-player-name">Player 1</span>
+    </div>
+    <div class="turn-meta">
+      <span id="roundLabel">Round 1/13</span>
+      <button id="btnOverride" class="override-btn hidden" title="Control this turn locally">Roll / Score</button>
+    </div>
+  </div>
+
+  <!-- Official Joker Rule Banner -->
+  <div id="jokerStrip" class="joker-strip"></div>
+
+  <!-- Main Workspace -->
+  <main id="workspace" class="workspace">
+    <!-- 3D Top-Down Dice Arena + Docked Side Reserve Bar -->
+    <section id="arenaSection" class="arena-section">
+      <div class="tray-shell">
+        <canvas id="diceCanvas" aria-label="3D Dice Tray and Side Reserve Bar"></canvas>
+        <div id="trayHint" class="tray-hint">Tap Roll to start</div>
+      </div>
+      <div class="arena-controls">
+        <button id="btnRoll" class="roll-btn">
+          <span id="rollBtnLabel">Roll Dice</span>
+          <span id="rollPips" class="roll-pips">
+            <span class="roll-pip"></span>
+            <span class="roll-pip"></span>
+            <span class="roll-pip"></span>
+          </span>
+        </button>
+        <button id="btnReleaseAll" class="release-all-btn hidden" title="Return all reserved dice to tray">Release</button>
+      </div>
+    </section>
+
+    <!-- Focus-Aware Unified Scorecard -->
+    <section class="scorecard-section">
+      <div id="scorecardScroll" class="scorecard-scroll">
+        <table id="scoreTable" class="score-table focus-mode"></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Main Menu Modal -->
+<div id="modalMenu" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Menu">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">🎲 Yachti Menu</div>
+      <button class="modal-close" data-close="modalMenu" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="menu-list">
+        <button id="menuNewGame" class="menu-item">
+          <div class="menu-item-left"><span>✨</span><div><div class="menu-item-title">New Game / Players</div><div class="menu-item-sub">1–6 players, custom names &amp; mode</div></div></div>
+          <span>›</span>
+        </button>
+        <button id="menuModeSwitch" class="menu-item">
+          <div class="menu-item-left"><span>📋</span><div><div class="menu-item-title" id="menuModeTitle">Switch to Digital Scorecard</div><div class="menu-item-sub" id="menuModeSub">Use real physical dice with live synced scores</div></div></div>
+          <span>›</span>
+        </button>
+        <button id="menuLink" class="menu-item">
+          <div class="menu-item-left"><span>🔗</span><div><div class="menu-item-title">Link / Invite Devices</div><div class="menu-item-sub">Room Code, Share Link, QR &amp; ✈️ Airplane Sync</div></div></div>
+          <span>›</span>
+        </button>
+        <button id="menuAirplane" class="menu-item">
+          <div class="menu-item-left"><span>✈️</span><div><div class="menu-item-title">Airplane / Offline Sync</div><div class="menu-item-sub">2-scan QR link over Bluetooth PAN or Hotspot</div></div></div>
+          <span>›</span>
+        </button>
+        <button id="menuSeat" class="menu-item">
+          <div class="menu-item-left"><span>👤</span><div><div class="menu-item-title">Change My Seat</div><div class="menu-item-sub" id="menuSeatSub">Claim a player or watch as spectator</div></div></div>
+          <span>›</span>
+        </button>
+        <button id="menuAudioToggle" class="menu-item">
+          <div class="menu-item-left"><span>🔊</span><div><div class="menu-item-title">Sound Effects</div><div class="menu-item-sub" id="menuAudioSub">On</div></div></div>
+          <span id="menuAudioBadge">ON</span>
+        </button>
+        <button id="menuHapticsToggle" class="menu-item">
+          <div class="menu-item-left"><span>📳</span><div><div class="menu-item-title">Mobile Haptics</div><div class="menu-item-sub" id="menuHapticsSub">On</div></div></div>
+          <span id="menuHapticsBadge">ON</span>
+        </button>
+        <button id="menuInstall" class="menu-item">
+          <div class="menu-item-left"><span>📲</span><div><div class="menu-item-title" id="menuInstallTitle">Install App</div><div class="menu-item-sub" id="menuInstallSub">Play full-screen &amp; offline on home screen</div></div></div>
+          <span>›</span>
+        </button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="muted-note">Yachti Engine v1.0.0 · Zero-Sub PWA</span>
+      <button class="btn sm" data-close="modalMenu">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- 1-Step New Game / Players Setup Modal -->
+<div id="modalSetup" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="New Game">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">✨ New Game</div>
+      <button class="modal-close" data-close="modalSetup" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <span class="field-label">Play Mode</span>
+        <div class="seg-group">
+          <button id="setupMode3d" class="seg-btn active">🎲 3D Yachti</button>
+          <button id="setupModeCard" class="seg-btn">📋 Digital Scorecard</button>
+        </div>
+      </div>
+      <div>
+        <span class="field-label">Players (1–6)</span>
+        <div id="setupCountPills" class="count-pills"></div>
+      </div>
+      <div>
+        <span class="field-label">Player Names (Editable anytime)</span>
+        <div id="setupNameInputs" class="player-inputs-grid"></div>
+      </div>
+      <div class="muted-note">Start playing immediately on this device, or tap <b>Link Devices</b> anytime to invite others to join this game.</div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnSetupJoinRoom" class="btn sm">Join Room</button>
+      <button id="btnSetupStart" class="btn primary">Start Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- Link / Invite & Airplane Sync Modal -->
+<div id="modalLink" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Link Devices">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">🔗 Link Devices</div>
+      <button class="modal-close" data-close="modalLink" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="seg-group">
+        <button id="tabOnlineSync" class="seg-btn active">🌐 Online Room</button>
+        <button id="tabAirplaneSync" class="seg-btn">✈️ Airplane Sync</button>
+      </div>
+
+      <!-- Online Room Tab -->
+      <div id="panelOnlineSync" style="display:flex; flex-direction:column; gap:12px;">
+        <div id="onlineNotHosted">
+          <div class="muted-note" style="margin-bottom:10px;">Create a private encrypted room to sync 3D rolls, kept dice, and scores across up to 6 phones in real time.</div>
+          <button id="btnCreateRoom" class="btn primary full">Create Live Room</button>
+        </div>
+
+        <div id="onlineHosted" class="hidden" style="display:flex; flex-direction:column; gap:10px;">
+          <div class="room-code-box">
+            <div class="field-label" style="margin-bottom:2px;">4-Character Room Code</div>
+            <div id="displayRoomCode" class="room-code-big">----</div>
+            <div id="displayPeerSummary" class="muted-note">Waiting for players to join…</div>
+          </div>
+          <div class="qr-wrap">
+            <canvas id="roomQrCanvas" width="240" height="240"></canvas>
+          </div>
+          <div class="row-gap">
+            <button id="btnShareLink" class="btn emerald">📤 Share Link</button>
+            <button id="btnCopyLink" class="btn">📋 Copy Link</button>
+          </div>
+          <button id="btnLeaveRoom" class="btn danger sm">Disconnect / Play Local</button>
+        </div>
+
+        <hr style="border:none; border-top:1px solid var(--border); width:100%; margin:2px 0;">
+
+        <div>
+          <span class="field-label">Join Someone Else's Room</span>
+          <div class="row-gap">
+            <input id="inputJoinCode" class="text-input" placeholder="4-char code or paste link" autocomplete="off" autocapitalize="characters">
+            <button id="btnJoinRoom" class="btn primary" style="flex:0 0 auto;">Join</button>
+          </div>
+          <div style="margin-top:7px;">
+            <button id="btnScanOnlineQr" class="btn sm full">📷 Scan Room QR Code</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Airplane / Offline Sync Tab -->
+      <div id="panelAirplaneSync" class="hidden" style="display:flex; flex-direction:column; gap:11px;">
+        <div class="checklist-box">
+          <b>Zero Wi-Fi / Zero Data Pairing (3 Steps):</b>
+          <ol>
+            <li>Turn on <b>Bluetooth Tethering</b> (or an offline <b>Wi-Fi Hotspot</b> with mobile data off) between devices.</li>
+            <li><b>Host</b> taps <i>Host Airplane Sync</i> → <b>Guest</b> scans Offer QR to create an Answer QR.</li>
+            <li><b>Host</b> scans Guest's Answer QR → direct P2P link locks in!</li>
+          </ol>
+        </div>
+
+        <div class="row-gap">
+          <button id="btnAirHost" class="btn primary">Host (Create Offer)</button>
+          <button id="btnAirGuest" class="btn emerald">Join (Scan Offer)</button>
+        </div>
+
+        <div id="airStatusText" class="muted-note" style="text-align:center;"></div>
+
+        <!-- Airplane Host Flow -->
+        <div id="airHostBox" class="hidden" style="display:flex; flex-direction:column; gap:9px;">
+          <div class="field-label" style="margin:0;">Step 1: Guest scans this Offer QR</div>
+          <div class="qr-wrap">
+            <canvas id="airOfferQr" width="240" height="240"></canvas>
+          </div>
+          <div class="row-gap">
+            <button id="btnCopyAirOffer" class="btn sm">Copy Offer Code</button>
+            <button id="btnHostScanAnswer" class="btn emerald sm">📷 Step 2: Scan Answer QR</button>
+          </div>
+          <div>
+            <span class="field-label">Or Paste Guest Answer Code</span>
+            <div class="row-gap">
+              <input id="inputAirAnswer" class="text-input" placeholder="Paste YAIR:... answer">
+              <button id="btnApplyAirAnswer" class="btn primary sm" style="flex:0 0 auto;">Connect</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Airplane Guest Flow -->
+        <div id="airGuestBox" class="hidden" style="display:flex; flex-direction:column; gap:9px;">
+          <div id="airGuestStep1" style="display:flex; flex-direction:column; gap:8px;">
+            <button id="btnGuestScanOffer" class="btn emerald full">📷 Step 1: Scan Host Offer QR</button>
+            <div>
+              <span class="field-label">Or Paste Host Offer Code</span>
+              <div class="row-gap">
+                <input id="inputAirOffer" class="text-input" placeholder="Paste YAIR:... offer">
+                <button id="btnApplyAirOffer" class="btn primary sm" style="flex:0 0 auto;">Create Answer</button>
+              </div>
+            </div>
+          </div>
+          <div id="airGuestStep2" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
+            <div class="field-label" style="margin:0;">Step 2: Host scans this Answer QR</div>
+            <div class="qr-wrap">
+              <canvas id="airAnswerQr" width="240" height="240"></canvas>
+            </div>
+            <button id="btnCopyAirAnswer" class="btn sm full">Copy Answer Code</button>
+          </div>
+        </div>
+
+        <button id="btnAirPassFallback" class="btn sm full">Or just play single-device Pass-and-Play</button>
+      </div>
+
+      <!-- Built-in Camera QR Scanner Overlay inside Link Modal -->
+      <div id="qrScannerPanel" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
+        <div class="scanner-box">
+          <video id="qrVideo" playsinline muted autoplay></video>
+          <div class="scanner-reticle"></div>
+        </div>
+        <div id="qrScannerMsg" class="muted-note" style="text-align:center;">Point camera at QR code…</div>
+        <button id="btnStopScanner" class="btn danger sm full">Cancel Camera</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 1-Tap "Who Are You?" Seat Picker Modal -->
+<div id="modalSeat" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Choose Your Seat">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">👤 Who are you?</div>
+      <button class="modal-close" data-close="modalSeat" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="muted-note">Pick your seat so your screen focuses automatically on your turn. Unclaimed seats stay controllable on the host device.</div>
+      <div id="seatOptionsList" class="menu-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Inline Player Name Edit Modal -->
+<div id="modalEditName" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit Player Name">
+  <div class="modal-card" style="max-width:340px;">
+    <div class="modal-head">
+      <div class="modal-title">✏️ Edit Player Name</div>
+      <button class="modal-close" data-close="modalEditName" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <input id="inputEditName" class="text-input" maxlength="18" placeholder="Player name">
+    </div>
+    <div class="modal-foot">
+      <button class="btn sm" data-close="modalEditName">Cancel</button>
+      <button id="btnSavePlayerName" class="btn primary sm">Save Name</button>
+    </div>
+  </div>
+</div>
+
+<!-- Digital Scorecard Validated Quick Score Picker Modal -->
+<div id="modalQuickPick" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Enter Score">
+  <div class="modal-card" style="max-width:380px;">
+    <div class="modal-head">
+      <div class="modal-title" id="quickPickTitle">Enter Score</div>
+      <button class="modal-close" data-close="modalQuickPick" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="quickPickSub" class="muted-note"></div>
+      <div id="quickPickGrid" class="picker-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Platform-Aware Install App Modal -->
+<div id="modalInstall" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Install Yachti">
+  <div class="modal-card" style="max-width:400px;">
+    <div class="modal-head">
+      <div class="modal-title">📲 Install Yachti</div>
+      <button class="modal-close" data-close="modalInstall" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="installBody"></div>
+    <div class="modal-foot">
+      <span class="muted-note">Works 100% offline once installed</span>
+      <button class="btn sm" data-close="modalInstall">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- End-of-Game Final Rankings Podium Modal -->
+<div id="modalFinish" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Final Rankings">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">🏆 Final Rankings</div>
+      <button class="modal-close" data-close="modalFinish" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="podiumList" class="podium-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnFinishNew" class="btn sm">Change Players</button>
+      <button id="btnPlayAgain" class="btn primary">🔄 Play Again (Same Players)</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ============================================================================
+   * MODULE 1: CONSTANTS, CANONICAL STATE SCHEMA & OFFICIAL YACHTI SCORING ENGINE
+   * ============================================================================ */
+  const APP_VERSION = '1.0.0';
+  const STORAGE_STATE_KEY = 'yachti_v1_state';
+  const STORAGE_DEVICE_KEY = 'yachti_v1_device_id';
+  const STORAGE_PREFS_KEY = 'yachti_v1_prefs';
+  const MAX_PLAYERS = 6;
+  const MAX_UNDO = 10;
+  const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  const UPPER_CATS = [
+    { key: 'ones',   label: 'Ones',   hint: '1s', face: 1 },
+    { key: 'twos',   label: 'Twos',   hint: '2s', face: 2 },
+    { key: 'threes', label: 'Threes', hint: '3s', face: 3 },
+    { key: 'fours',  label: 'Fours',  hint: '4s', face: 4 },
+    { key: 'fives',  label: 'Fives',  hint: '5s', face: 5 },
+    { key: 'sixes',  label: 'Sixes',  hint: '6s', face: 6 }
+  ];
+
+  const LOWER_CATS = [
+    { key: 'threeKind',     label: '3 of a Kind',    hint: 'Sum', type: 'sum' },
+    { key: 'fourKind',      label: '4 of a Kind',    hint: 'Sum', type: 'sum' },
+    { key: 'fullHouse',     label: 'Full House',     hint: '25',  type: 'fixed', fixedVal: 25 },
+    { key: 'smallStraight', label: 'Small Straight', hint: '30',  type: 'fixed', fixedVal: 30 },
+    { key: 'largeStraight', label: 'Large Straight', hint: '40',  type: 'fixed', fixedVal: 40 },
+    { key: 'yachti',        label: 'Yachti',         hint: '50',  type: 'fixed', fixedVal: 50 },
+    { key: 'chance',        label: 'Chance',         hint: 'Sum', type: 'sum' }
+  ];
+
+  const ALL_CATS = [...UPPER_CATS, ...LOWER_CATS];
+  const UPPER_KEYS = UPPER_CATS.map(c => c.key);
+  const LOWER_KEYS = LOWER_CATS.map(c => c.key);
+
+  function randomHex(bytesLen) {
+    const arr = new Uint8Array(bytesLen);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function generateRoomCode() {
+    const arr = new Uint8Array(4);
+    crypto.getRandomValues(arr);
+    let out = '';
+    for (let i = 0; i < 4; i++) out += ROOM_ALPHABET[arr[i] % ROOM_ALPHABET.length];
+    return out;
+  }
+
+  function getOrCreateDeviceId() {
+    let id = localStorage.getItem(STORAGE_DEVICE_KEY);
+    if (!id) {
+      id = 'dev_' + randomHex(6);
+      localStorage.setItem(STORAGE_DEVICE_KEY, id);
+    }
+    return id;
+  }
+
+  const MY_DEVICE_ID = getOrCreateDeviceId();
+
+  function emptyScores() {
+    return {
+      ones: null, twos: null, threes: null, fours: null, fives: null, sixes: null,
+      threeKind: null, fourKind: null, fullHouse: null, smallStraight: null,
+      largeStraight: null, yachti: null, chance: null
+    };
+  }
+
+  function createPlayer(idx, name, claimedByDeviceId = null) {
+    return {
+      id: 'p_' + randomHex(4),
+      name: (name && name.trim()) ? name.trim().slice(0, 18) : `Player ${idx + 1}`,
+      nameUpdatedAt: Date.now(),
+      claimedByDeviceId,
+      scores: emptyScores(),
+      yachtiBonuses: 0
+    };
+  }
+
+  function createFreshTurnState() {
+    return {
+      rollNumber: 0,
+      diceValues: [1, 2, 3, 4, 5],
+      heldMask: [false, false, false, false, false],
+      lastRollPayload: null,
+      animating: false
+    };
+  }
+
+  function createCanonicalState({ playerNames = ['Player 1', 'Player 2'], mode = '3d', roomId = 'LOCAL', sessionToken = null } = {}) {
+    const count = Math.max(1, Math.min(MAX_PLAYERS, playerNames.length));
+    const players = [];
+    for (let i = 0; i < count; i++) {
+      players.push(createPlayer(i, playerNames[i], null));
+    }
+    return {
+      version: 1,
+      roomId,
+      sessionToken: sessionToken || randomHex(16),
+      mode: mode === 'scorecard' ? 'scorecard' : '3d',
+      gameStatus: 'active',
+      turnSeq: 1,
+      roundNumber: 1,
+      activePlayerIndex: 0,
+      players,
+      turnState: createFreshTurnState(),
+      undoStack: [],
+      updatedAt: Date.now()
+    };
+  }
+
+  function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function computePlayerTotals(player) {
+    let upperSub = 0;
+    let upperPar = 0;
+    let upperFilled = 0;
+    for (const c of UPPER_CATS) {
+      const v = player.scores[c.key];
+      if (v !== null && v !== undefined) {
+        upperSub += v;
+        upperPar += c.face * 3;
+        upperFilled++;
+      }
+    }
+    const upperBonus = upperSub >= 63 ? 35 : 0;
+    const upperTotal = upperSub + upperBonus;
+
+    let lowerSub = 0;
+    let lowerFilled = 0;
+    for (const c of LOWER_CATS) {
+      const v = player.scores[c.key];
+      if (v !== null && v !== undefined) {
+        lowerSub += v;
+        lowerFilled++;
+      }
+    }
+    const bonusPts = (player.yachtiBonuses || 0) * 100;
+    const lowerTotal = lowerSub + bonusPts;
+    const grandTotal = upperTotal + lowerTotal;
+    const filledCount = upperFilled + lowerFilled;
+    const parDelta = upperSub - upperPar;
+    const remainingForBonus = Math.max(0, 63 - upperSub);
+
+    return {
+      upperSub, upperBonus, upperTotal, upperFilled, parDelta, remainingForBonus,
+      lowerSub, bonusPts, lowerTotal, grandTotal, filledCount
+    };
+  }
+
+  function getDiceCounts(dice) {
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    let sum = 0;
+    for (let i = 0; i < 5; i++) {
+      const v = dice[i];
+      if (v >= 1 && v <= 6) {
+        counts[v]++;
+        sum += v;
+      }
+    }
+    return { counts, sum };
+  }
+
+  function isFiveOfKind(dice) {
+    return dice.length === 5 && dice[0] >= 1 && dice.every(v => v === dice[0]);
+  }
+
+  function computeStandardCategoryScore(catKey, dice) {
+    const { counts, sum } = getDiceCounts(dice);
+    switch (catKey) {
+      case 'ones':   return counts[1] * 1;
+      case 'twos':   return counts[2] * 2;
+      case 'threes': return counts[3] * 3;
+      case 'fours':  return counts[4] * 4;
+      case 'fives':  return counts[5] * 5;
+      case 'sixes':  return counts[6] * 6;
+      case 'threeKind':
+        return counts.some(c => c >= 3) ? sum : 0;
+      case 'fourKind':
+        return counts.some(c => c >= 4) ? sum : 0;
+      case 'fullHouse': {
+        let has3 = false, has2 = false;
+        for (let f = 1; f <= 6; f++) {
+          if (counts[f] === 3) has3 = true;
+          if (counts[f] === 2) has2 = true;
+        }
+        return (has3 && has2) ? 25 : 0;
+      }
+      case 'smallStraight': {
+        const has = (a, b, c, d) => counts[a] > 0 && counts[b] > 0 && counts[c] > 0 && counts[d] > 0;
+        return (has(1,2,3,4) || has(2,3,4,5) || has(3,4,5,6)) ? 30 : 0;
+      }
+      case 'largeStraight': {
+        const has = (a, b, c, d, e) => counts[a] > 0 && counts[b] > 0 && counts[c] > 0 && counts[d] > 0 && counts[e] > 0;
+        return (has(1,2,3,4,5) || has(2,3,4,5,6)) ? 40 : 0;
+      }
+      case 'yachti':
+        return counts.some(c => c === 5) ? 50 : 0;
+      case 'chance':
+        return sum;
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * Evaluates every open category for the active player given current dice,
+   * strictly enforcing Official Yachti +100 Bonus and 3-tier Joker Rule priority:
+   * (1) matching Upper box if open;
+   * (2) else any open Lower box at full value (FH 25, SS 30, LS 40, 3K/4K/Chance = 5-dice sum);
+   * (3) else 0 in any open Upper box.
+   */
+  function evaluateTurnOptions(player, dice) {
+    const fiveKind = isFiveOfKind(dice);
+    const yachtiAlreadyFilled = player.scores.yachti !== null;
+    const grantsYachtiBonus = fiveKind && player.scores.yachti === 50;
+    const jokerActive = fiveKind && yachtiAlreadyFilled;
+
+    const options = {};
+    let jokerMessage = null;
+
+    if (!jokerActive) {
+      for (const cat of ALL_CATS) {
+        if (player.scores[cat.key] !== null) continue;
+        options[cat.key] = {
+          legal: true,
+          score: computeStandardCategoryScore(cat.key, dice),
+          isJoker: false,
+          grantsBonus: false
+        };
+      }
+      return { options, jokerActive: false, grantsYachtiBonus: false, jokerMessage: null };
+    }
+
+    // Joker Rule active (5-of-a-kind with Yachti box already filled)
+    const face = dice[0];
+    const matchUpperKey = UPPER_KEYS[face - 1];
+    const matchUpperLabel = UPPER_CATS[face - 1].label;
+    const bonusText = grantsYachtiBonus ? ' (+100 Yachti Bonus!)' : '';
+    const sum = face * 5;
+
+    if (player.scores[matchUpperKey] === null) {
+      // Priority 1: MUST score in matching Upper Section box
+      jokerMessage = `🃏 Joker Rule: Must score ${sum} in ${matchUpperLabel}${bonusText}`;
+      for (const cat of ALL_CATS) {
+        if (player.scores[cat.key] !== null) continue;
+        const allowed = cat.key === matchUpperKey;
+        options[cat.key] = {
+          legal: allowed,
+          score: allowed ? sum : 0,
+          isJoker: allowed,
+          grantsBonus: allowed && grantsYachtiBonus
+        };
+      }
+    } else {
+      const openLower = LOWER_KEYS.filter(k => player.scores[k] === null);
+      if (openLower.length > 0) {
+        // Priority 2: Any open Lower Section box at FULL value
+        jokerMessage = `🃏 Joker Rule: Pick any open Lower box at full value${bonusText}`;
+        for (const cat of ALL_CATS) {
+          if (player.scores[cat.key] !== null) continue;
+          const isLower = LOWER_KEYS.includes(cat.key);
+          let val = 0;
+          if (isLower) {
+            if (cat.key === 'fullHouse') val = 25;
+            else if (cat.key === 'smallStraight') val = 30;
+            else if (cat.key === 'largeStraight') val = 40;
+            else val = sum;
+          }
+          options[cat.key] = {
+            legal: isLower,
+            score: val,
+            isJoker: isLower,
+            grantsBonus: isLower && grantsYachtiBonus
+          };
+        }
+      } else {
+        // Priority 3: 0 in any remaining open Upper Section box
+        jokerMessage = `🃏 Joker Rule: Score 0 in any open Upper box${bonusText}`;
+        for (const cat of ALL_CATS) {
+          if (player.scores[cat.key] !== null) continue;
+          const isUpper = UPPER_KEYS.includes(cat.key);
+          options[cat.key] = {
+            legal: isUpper,
+            score: 0,
+            isJoker: isUpper,
+            grantsBonus: isUpper && grantsYachtiBonus
+          };
+        }
+      }
+    }
+
+    return { options, jokerActive: true, grantsYachtiBonus, jokerMessage };
+  }
+
+  function isGameFinished(players) {
+    return players.length > 0 && players.every(p => ALL_CATS.every(c => p.scores[c.key] !== null));
+  }
+
+  function computeNextRound(players) {
+    let minFilled = 13;
+    for (const p of players) {
+      const f = ALL_CATS.reduce((acc, c) => acc + (p.scores[c.key] !== null ? 1 : 0), 0);
+      if (f < minFilled) minFilled = f;
+    }
+    return Math.min(13, minFilled + 1);
+  }
+
+  function nextUnfinishedPlayerIndex(players, fromIdx) {
+    const n = players.length;
+    for (let step = 1; step <= n; step++) {
+      const idx = (fromIdx + step) % n;
+      if (ALL_CATS.some(c => players[idx].scores[c.key] === null)) return idx;
+    }
+    return 0;
+  }
+
+  /* ============================================================================
+   * MODULE 2: ZERO-ASSET WEB AUDIO API SYNTHESIZER & MOBILE HAPTICS
+   * ============================================================================ */
+  const Prefs = (() => {
+    let data = { sound: true, haptics: true };
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_PREFS_KEY) || '{}');
+      if (typeof saved.sound === 'boolean') data.sound = saved.sound;
+      if (typeof saved.haptics === 'boolean') data.haptics = saved.haptics;
+    } catch (_) {}
+    function save() {
+      try { localStorage.setItem(STORAGE_PREFS_KEY, JSON.stringify(data)); } catch (_) {}
+    }
+    return {
+      get sound() { return data.sound; },
+      set sound(v) { data.sound = !!v; save(); },
+      get haptics() { return data.haptics; },
+      set haptics(v) { data.haptics = !!v; save(); },
+      get muted() { return !data.sound && !data.haptics; }
+    };
+  })();
+
+  const SFX = (() => {
+    let ctx = null;
+    function ensureCtx() {
+      if (!Prefs.sound) return null;
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ctx = new AC();
+      }
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      return ctx;
+    }
+
+    function buzz(pattern) {
+      if (!Prefs.haptics) return;
+      if (navigator.vibrate) {
+        try { navigator.vibrate(pattern); } catch (_) {}
+      }
+    }
+
+    function playRattle() {
+      buzz([14, 24, 14]);
+      const c = ensureCtx();
+      if (!c) return;
+      const now = c.currentTime;
+      for (let i = 0; i < 4; i++) {
+        const t = now + i * 0.042;
+        const dur = 0.035;
+        const buf = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate);
+        const ch = buf.getChannelData(0);
+        for (let k = 0; k < ch.length; k++) {
+          ch[k] = (Math.random() * 2 - 1) * Math.exp(-k / (ch.length * 0.35));
+        }
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        const filt = c.createBiquadFilter();
+        filt.type = 'bandpass';
+        filt.frequency.setValueAtTime(1100 + i * 240, t);
+        filt.Q.value = 2.2;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.16, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        src.connect(filt).connect(g).connect(c.destination);
+        src.start(t);
+      }
+    }
+
+    function playBounce(intensity = 0.6) {
+      const c = ensureCtx();
+      if (!c) return;
+      const now = c.currentTime;
+      const clamped = Math.max(0.12, Math.min(1, intensity));
+      // Soft wooden tray resonance + ivory click
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = 'triangle';
+      const baseFreq = 190 + Math.random() * 90 + clamped * 110;
+      osc.frequency.setValueAtTime(baseFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(75, now + 0.045);
+      g.gain.setValueAtTime(0.11 * clamped, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.connect(g).connect(c.destination);
+      osc.start(now);
+      osc.stop(now + 0.055);
+    }
+
+    function playReserve(holding) {
+      buzz(holding ? 12 : 8);
+      const c = ensureCtx();
+      if (!c) return;
+      const now = c.currentTime;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(holding ? 520 : 390, now);
+      osc.frequency.exponentialRampToValueAtTime(holding ? 780 : 280, now + 0.065);
+      g.gain.setValueAtTime(0.13, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+      osc.connect(g).connect(c.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+
+    function playScore(points) {
+      buzz(points > 0 ? 18 : 10);
+      const c = ensureCtx();
+      if (!c) return;
+      const now = c.currentTime;
+      if (points === 0) {
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.14);
+        g.gain.setValueAtTime(0.12, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(g).connect(c.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+        return;
+      }
+      const notes = [523.25, 659.25];
+      notes.forEach((freq, idx) => {
+        const t = now + idx * 0.07;
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(0.14, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+        osc.connect(g).connect(c.destination);
+        osc.start(t);
+        osc.stop(t + 0.23);
+      });
+    }
+
+    function playYachtiFanfare() {
+      buzz([30, 40, 30, 40, 70]);
+      const c = ensureCtx();
+      if (!c) return;
+      const now = c.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5, 1174.66];
+      notes.forEach((freq, idx) => {
+        const t = now + idx * 0.085;
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(0.16, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+        osc.connect(g).connect(c.destination);
+        osc.start(t);
+        osc.stop(t + 0.44);
+      });
+    }
+
+    function playUndo() {
+      buzz(10);
+      const c = ensureCtx();
+      if (!c) return;
+      const now = c.currentTime;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(480, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.11);
+      g.gain.setValueAtTime(0.11, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(g).connect(c.destination);
+      osc.start(now);
+      osc.stop(now + 0.13);
+    }
+
+    return { playRattle, playBounce, playReserve, playScore, playYachtiFanfare, playUndo };
+  })();
+
+  /* ============================================================================
+   * MODULE 3: ZERO-DEPENDENCY ISO/IEC 18004 QR CODE ENCODER (V1–V20, LEVEL L)
+   * ============================================================================ */
+  const QRCodeGen = (() => {
+    const ALIGN = {
+      1: [], 2: [6,18], 3: [6,22], 4: [6,26], 5: [6,30], 6: [6,34],
+      7: [6,22,38], 8: [6,24,42], 9: [6,26,46], 10: [6,28,50],
+      11: [6,30,54], 12: [6,32,58], 13: [6,34,62], 14: [6,26,46,66],
+      15: [6,26,48,70], 16: [6,26,50,74], 17: [6,30,54,78],
+      18: [6,30,56,82], 19: [6,30,58,86], 20: [6,34,62,90]
+    };
+    // [ecPerBlock, g1Blocks, g1Data, g2Blocks, g2Data]
+    const SPEC_L = {
+      1:  [7,  1, 19,  0, 0],
+      2:  [10, 1, 34,  0, 0],
+      3:  [15, 1, 55,  0, 0],
+      4:  [20, 1, 80,  0, 0],
+      5:  [26, 1, 108, 0, 0],
+      6:  [18, 2, 68,  0, 0],
+      7:  [20, 2, 78,  0, 0],
+      8:  [24, 2, 97,  0, 0],
+      9:  [30, 2, 116, 0, 0],
+      10: [18, 2, 68,  2, 69],
+      11: [20, 4, 81,  0, 0],
+      12: [24, 2, 92,  2, 93],
+      13: [26, 4, 107, 0, 0],
+      14: [30, 3, 115, 1, 116],
+      15: [22, 5, 87,  1, 88],
+      16: [24, 5, 98,  1, 99],
+      17: [28, 1, 107, 5, 108],
+      18: [30, 5, 120, 1, 121],
+      19: [28, 3, 113, 4, 114],
+      20: [28, 3, 107, 5, 108]
+    };
+
+    // GF(256) with primitive polynomial 0x11D
+    const EXP = new Uint8Array(512);
+    const LOG = new Uint8Array(256);
+    {
+      let x = 1;
+      for (let i = 0; i < 255; i++) {
+        EXP[i] = x;
+        LOG[x] = i;
+        x <<= 1;
+        if (x & 0x100) x ^= 0x11D;
+      }
+      for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+    }
+
+    function gfMul(a, b) {
+      return (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
+    }
+
+    function rsGenPoly(degree) {
+      let poly = [1];
+      for (let i = 0; i < degree; i++) {
+        const next = new Array(poly.length + 1).fill(0);
+        const factor = EXP[i];
+        for (let j = 0; j < poly.length; j++) {
+          next[j] ^= poly[j];
+          next[j + 1] ^= gfMul(poly[j], factor);
+        }
+        poly = next;
+      }
+      return poly;
+    }
+
+    function rsCompute(data, ecLen) {
+      const gen = rsGenPoly(ecLen);
+      const rem = new Uint8Array(ecLen);
+      for (let i = 0; i < data.length; i++) {
+        const factor = data[i] ^ rem[0];
+        for (let j = 0; j < ecLen - 1; j++) rem[j] = rem[j + 1];
+        rem[ecLen - 1] = 0;
+        if (factor !== 0) {
+          for (let j = 0; j < ecLen; j++) {
+            rem[j] ^= gfMul(gen[j + 1], factor);
+          }
+        }
+      }
+      return rem;
+    }
+
+    function bchFormatBits(maskId) {
+      // EC Level L = 01
+      const data = (0b01 << 3) | maskId;
+      let rem = data << 10;
+      const poly = 0x537;
+      for (let i = 14; i >= 10; i--) {
+        if ((rem >> i) & 1) rem ^= poly << (i - 10);
+      }
+      return ((data << 10) | rem) ^ 0x5412;
+    }
+
+    function bchVersionBits(ver) {
+      let rem = ver << 12;
+      const poly = 0x1F25;
+      for (let i = 17; i >= 12; i--) {
+        if ((rem >> i) & 1) rem ^= poly << (i - 12);
+      }
+      return (ver << 12) | rem;
+    }
+
+    function encode(text) {
+      const bytes = new TextEncoder().encode(text);
+      let ver = 1;
+      for (; ver <= 20; ver++) {
+        const [, b1, d1, b2, d2] = SPEC_L[ver];
+        const capBytes = b1 * d1 + b2 * d2;
+        const countBits = ver < 10 ? 8 : 16;
+        const neededBits = 4 + countBits + bytes.length * 8;
+        if (neededBits <= capBytes * 8) break;
+      }
+      if (ver > 20) throw new Error('QR payload exceeds V20 capacity');
+
+      const [ecLen, b1, d1, b2, d2] = SPEC_L[ver];
+      const totalDataBytes = b1 * d1 + b2 * d2;
+
+      // Build bit stream
+      const bits = [];
+      const pushBits = (val, len) => {
+        for (let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1);
+      };
+      pushBits(0b0100, 4); // Byte mode
+      pushBits(bytes.length, ver < 10 ? 8 : 16);
+      for (let i = 0; i < bytes.length; i++) pushBits(bytes[i], 8);
+      // Terminator
+      const remCap = totalDataBytes * 8 - bits.length;
+      pushBits(0, Math.min(4, remCap));
+      while (bits.length % 8 !== 0) bits.push(0);
+
+      const dataCodewords = new Uint8Array(totalDataBytes);
+      let byteIdx = 0;
+      for (let i = 0; i < bits.length; i += 8) {
+        let b = 0;
+        for (let k = 0; k < 8; k++) b = (b << 1) | bits[i + k];
+        dataCodewords[byteIdx++] = b;
+      }
+      const padBytes = [0xEC, 0x11];
+      let pi = 0;
+      while (byteIdx < totalDataBytes) {
+        dataCodewords[byteIdx++] = padBytes[pi++ & 1];
+      }
+
+      // Split into RS blocks & interleave
+      const dataBlocks = [];
+      const ecBlocks = [];
+      let offset = 0;
+      for (let i = 0; i < b1; i++) {
+        const blk = dataCodewords.slice(offset, offset + d1);
+        offset += d1;
+        dataBlocks.push(blk);
+        ecBlocks.push(rsCompute(blk, ecLen));
+      }
+      for (let i = 0; i < b2; i++) {
+        const blk = dataCodewords.slice(offset, offset + d2);
+        offset += d2;
+        dataBlocks.push(blk);
+        ecBlocks.push(rsCompute(blk, ecLen));
+      }
+
+      const finalBytes = [];
+      const maxD = Math.max(d1, d2);
+      for (let i = 0; i < maxD; i++) {
+        for (let b = 0; b < dataBlocks.length; b++) {
+          if (i < dataBlocks[b].length) finalBytes.push(dataBlocks[b][i]);
+        }
+      }
+      for (let i = 0; i < ecLen; i++) {
+        for (let b = 0; b < ecBlocks.length; b++) {
+          finalBytes.push(ecBlocks[b][i]);
+        }
+      }
+
+      // Build matrix
+      const size = 17 + 4 * ver;
+      const mat = Array.from({ length: size }, () => new Uint8Array(size));
+      const isFunc = Array.from({ length: size }, () => new Uint8Array(size));
+
+      const setFn = (r, c, v) => {
+        if (r >= 0 && r < size && c >= 0 && c < size) {
+          mat[r][c] = v ? 1 : 0;
+          isFunc[r][c] = 1;
+        }
+      };
+
+      // Finder patterns + separators
+      const drawFinder = (r0, c0) => {
+        for (let dr = -1; dr <= 7; dr++) {
+          for (let dc = -1; dc <= 7; dc++) {
+            const r = r0 + dr, c = c0 + dc;
+            if (r < 0 || r >= size || c < 0 || c >= size) continue;
+            const onBorder = dr === 0 || dr === 6 || dc === 0 || dc === 6;
+            const inCore = dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4;
+            const inFinder = dr >= 0 && dr <= 6 && dc >= 0 && dc <= 6;
+            setFn(r, c, inFinder && (onBorder || inCore));
+          }
+        }
+      };
+      drawFinder(0, 0);
+      drawFinder(0, size - 7);
+      drawFinder(size - 7, 0);
+
+      // Timing patterns
+      for (let i = 8; i < size - 8; i++) {
+        setFn(6, i, (i & 1) === 0);
+        setFn(i, 6, (i & 1) === 0);
+      }
+
+      // Alignment patterns
+      const pts = ALIGN[ver];
+      for (const r of pts) {
+        for (const c of pts) {
+          if ((r <= 8 && c <= 8) || (r <= 8 && c >= size - 9) || (r >= size - 9 && c <= 8)) continue;
+          for (let dr = -2; dr <= 2; dr++) {
+            for (let dc = -2; dc <= 2; dc++) {
+              const dist = Math.max(Math.abs(dr), Math.abs(dc));
+              setFn(r + dr, c + dc, dist !== 1);
+            }
+          }
+        }
+      }
+
+      // Reserve format info + dark module
+      for (let i = 0; i <= 8; i++) {
+        setFn(8, i, 0);
+        setFn(i, 8, 0);
+      }
+      for (let i = size - 8; i < size; i++) {
+        setFn(8, i, 0);
+        setFn(i, 8, 0);
+      }
+      setFn(size - 8, 8, 1);
+
+      // Version info (v >= 7)
+      if (ver >= 7) {
+        const vBits = bchVersionBits(ver);
+        for (let i = 0; i < 18; i++) {
+          const bit = (vBits >> i) & 1;
+          const r = Math.floor(i / 3);
+          const c = size - 11 + (i % 3);
+          setFn(r, c, bit);
+          setFn(c, r, bit);
+        }
+      }
+
+      // Place data bits in zig-zag order
+      let bitPos = 0;
+      const totalBits = finalBytes.length * 8;
+      for (let right = size - 1; right >= 1; right -= 2) {
+        if (right === 6) right = 5;
+        const upward = (((size - 1 - right) >> 1) & 1) === 0;
+        for (let vert = 0; vert < size; vert++) {
+          const r = upward ? (size - 1 - vert) : vert;
+          for (let dx = 0; dx < 2; dx++) {
+            const c = right - dx;
+            if (!isFunc[r][c]) {
+              let bit = 0;
+              if (bitPos < totalBits) {
+                bit = (finalBytes[bitPos >> 3] >> (7 - (bitPos & 7))) & 1;
+                bitPos++;
+              }
+              mat[r][c] = bit;
+            }
+          }
+        }
+      }
+
+      // Mask functions (pick lowest penalty among 0..7)
+      const maskFn = [
+        (r, c) => ((r + c) & 1) === 0,
+        (r, c) => (r & 1) === 0,
+        (r, c) => c % 3 === 0,
+        (r, c) => (r + c) % 3 === 0,
+        (r, c) => (((r >> 1) + Math.floor(c / 3)) & 1) === 0,
+        (r, c) => ((r * c) & 1) + ((r * c) % 3) === 0,
+        (r, c) => ((((r * c) & 1) + ((r * c) % 3)) & 1) === 0,
+        (r, c) => ((((r + c) & 1) + ((r * c) % 3)) & 1) === 0
+      ];
+
+      function writeFormat(grid, mId) {
+        const fBits = bchFormatBits(mId);
+        // Around top-left
+        for (let i = 0; i <= 5; i++) grid[8][i] = (fBits >> (14 - i)) & 1;
+        grid[8][7] = (fBits >> 8) & 1;
+        grid[8][8] = (fBits >> 7) & 1;
+        grid[7][8] = (fBits >> 6) & 1;
+        for (let i = 0; i <= 5; i++) grid[5 - i][8] = (fBits >> (5 - i)) & 1;
+        // Bottom-left & top-right
+        for (let i = 0; i <= 6; i++) grid[size - 1 - i][8] = (fBits >> (14 - i)) & 1;
+        for (let i = 0; i <= 7; i++) grid[8][size - 8 + i] = (fBits >> (7 - i)) & 1;
+        grid[size - 8][8] = 1;
+      }
+
+      function scorePenalty(grid) {
+        let pen = 0;
+        // Rule 1: Runs of >=5 same color
+        for (let r = 0; r < size; r++) {
+          let run = 1;
+          for (let c = 1; c < size; c++) {
+            if (grid[r][c] === grid[r][c - 1]) {
+              run++;
+              if (run === 5) pen += 3;
+              else if (run > 5) pen += 1;
+            } else run = 1;
+          }
+        }
+        for (let c = 0; c < size; c++) {
+          let run = 1;
+          for (let r = 1; r < size; r++) {
+            if (grid[r][c] === grid[r - 1][c]) {
+              run++;
+              if (run === 5) pen += 3;
+              else if (run > 5) pen += 1;
+            } else run = 1;
+          }
+        }
+        // Rule 2: 2x2 blocks
+        for (let r = 0; r < size - 1; r++) {
+          for (let c = 0; c < size - 1; c++) {
+            const v = grid[r][c];
+            if (v === grid[r][c + 1] && v === grid[r + 1][c] && v === grid[r + 1][c + 1]) pen += 3;
+          }
+        }
+        return pen;
+      }
+
+      let bestGrid = null;
+      let bestPen = Infinity;
+      for (let m = 0; m < 8; m++) {
+        const g = mat.map(row => row.slice());
+        const fn = maskFn[m];
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            if (!isFunc[r][c] && fn(r, c)) g[r][c] ^= 1;
+          }
+        }
+        writeFormat(g, m);
+        const p = scorePenalty(g);
+        if (p < bestPen) {
+          bestPen = p;
+          bestGrid = g;
+        }
+      }
+
+      return { size, grid: bestGrid, version: ver };
+    }
+
+    function renderToCanvas(canvas, text) {
+      const qr = encode(text);
+      const quiet = 4;
+      const total = qr.size + quiet * 2;
+      const scale = Math.max(2, Math.floor(240 / total));
+      const dim = total * scale;
+      canvas.width = dim;
+      canvas.height = dim;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, dim, dim);
+      ctx.fillStyle = '#091510';
+      for (let r = 0; r < qr.size; r++) {
+        for (let c = 0; c < qr.size; c++) {
+          if (qr.grid[r][c]) {
+            ctx.fillRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
+          }
+        }
+      }
+      return qr;
+    }
+
+    return { encode, renderToCanvas };
+  })();
+
+  /* ============================================================================
+   * MODULE 4: TOP-DOWN 3D DICE ENGINE & PHYSICAL TOUCH-DRAG SIDE RESERVE BAR
+   * ============================================================================ */
+  const DiceEngine = (() => {
+    const ANIM_MS = 900;
+    const S2 = Math.SQRT1_2;
+
+    // 6 cube faces with opposing pairs summing to 7
+    const FACE_DEFS = [
+      { val: 1, n: [0, 0, 1],  u: [1, 0, 0],  v: [0, 1, 0] },
+      { val: 6, n: [0, 0, -1], u: [-1, 0, 0], v: [0, 1, 0] },
+      { val: 2, n: [0, 1, 0],  u: [1, 0, 0],  v: [0, 0, -1] },
+      { val: 5, n: [0, -1, 0], u: [1, 0, 0],  v: [0, 0, 1] },
+      { val: 3, n: [1, 0, 0],  u: [0, 0, -1], v: [0, 1, 0] },
+      { val: 4, n: [-1, 0, 0], u: [0, 0, 1],  v: [0, 1, 0] }
+    ];
+
+    const PIP_COORDS = {
+      1: [[0, 0]],
+      2: [[-0.5, -0.5], [0.5, 0.5]],
+      3: [[-0.5, -0.5], [0, 0], [0.5, 0.5]],
+      4: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]],
+      5: [[-0.5, -0.5], [0.5, -0.5], [0, 0], [-0.5, 0.5], [0.5, 0.5]],
+      6: [[-0.5, -0.55], [0.5, -0.55], [-0.5, 0], [0.5, 0], [-0.5, 0.55], [0.5, 0.55]]
+    };
+
+    const TARGET_QUATS = {
+      1: [0, 0, 0, 1],
+      6: [1, 0, 0, 0],
+      2: [S2, 0, 0, S2],
+      5: [-S2, 0, 0, S2],
+      3: [0, -S2, 0, S2],
+      4: [0, S2, 0, S2]
+    };
+
+    function mulberry32(seed) {
+      let a = seed >>> 0;
+      return function() {
+        a |= 0;
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    // Quaternion helpers [x, y, z, w]
+    function qNorm(q) {
+      const m = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+      return [q[0]/m, q[1]/m, q[2]/m, q[3]/m];
+    }
+
+    function qMul(a, b) {
+      return [
+        a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1],
+        a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0],
+        a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3],
+        a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]
+      ];
+    }
+
+    function qFromAxisAngle(ax, ay, az, rad) {
+      const s = Math.sin(rad * 0.5);
+      return [ax * s, ay * s, az * s, Math.cos(rad * 0.5)];
+    }
+
+    function qRotVec(q, v) {
+      const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+      const vx = v[0], vy = v[1], vz = v[2];
+      const tx = 2 * (qy * vz - qz * vy);
+      const ty = 2 * (qz * vx - qx * vz);
+      const tz = 2 * (qx * vy - qy * vx);
+      return [
+        vx + qw * tx + (qy * tz - qz * ty),
+        vy + qw * ty + (qz * tx - qx * tz),
+        vz + qw * tz + (qx * ty - qy * tx)
+      ];
+    }
+
+    function qSlerp(a, b, t) {
+      let bx = b[0], by = b[1], bz = b[2], bw = b[3];
+      let dot = a[0]*bx + a[1]*by + a[2]*bz + a[3]*bw;
+      if (dot < 0) { dot = -dot; bx = -bx; by = -by; bz = -bz; bw = -bw; }
+      if (dot > 0.9995) {
+        return qNorm([
+          a[0] + t*(bx - a[0]),
+          a[1] + t*(by - a[1]),
+          a[2] + t*(bz - a[2]),
+          a[3] + t*(bw - a[3])
+        ]);
+      }
+      const theta0 = Math.acos(dot);
+      const theta = theta0 * t;
+      const s0 = Math.cos(theta) - dot * Math.sin(theta) / Math.sin(theta0);
+      const s1 = Math.sin(theta) / Math.sin(theta0);
+      return [s0*a[0] + s1*bx, s0*a[1] + s1*by, s0*a[2] + s1*bz, s0*a[3] + s1*bw];
+    }
+
+    let canvas = null;
+    let ctx = null;
+    let width = 320;
+    let height = 220;
+    let dpr = 1;
+    let rafId = null;
+
+    // Layout metrics computed on resize
+    let metrics = {
+      barX: 240,
+      barW: 76,
+      arenaW: 240,
+      dieSize: 44,
+      holdDieSize: 34,
+      slots: [] // 5 reserve bay centers {x, y}
+    };
+
+    // Per-die live visual state
+    const dice = Array.from({ length: 5 }, (_, i) => ({
+      index: i,
+      value: i + 1,
+      held: false,
+      x: 60 + i * 32,
+      y: 110,
+      z: 0,
+      vx: 0, vy: 0, vz: 0,
+      wx: 0, wy: 0, wz: 0,
+      q: TARGET_QUATS[i + 1].slice(),
+      targetQ: TARGET_QUATS[i + 1].slice(),
+      // Smooth slide interpolation for hold/release
+      slide: null // { fromX, fromY, fromQ, toX, toY, toQ, startAt, dur }
+    }));
+
+    // Active deterministic roll animation
+    let rollAnim = null;
+    let dragState = null; // { dieIdx, pointerId, startX, startY, startTime, moved, origX, origY }
+    let callbacks = {
+      canInteract: () => false,
+      canRollTap: () => false,
+      onHoldMove: () => {},
+      onRollTap: () => {},
+      onRollSettled: () => {}
+    };
+
+    function computeLayout() {
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
+      dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      width = rect.width;
+      height = rect.height;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+
+      const barW = Math.max(66, Math.min(102, Math.round(width * 0.24)));
+      const barX = width - barW;
+      const arenaW = barX;
+
+      const slotTop = 22;
+      const slotAvailH = Math.max(120, height - slotTop - 6);
+      const slotStep = slotAvailH / 5;
+      const holdDieSize = Math.max(24, Math.min(40, Math.floor(Math.min(slotStep * 0.74, barW * 0.56))));
+      const dieSize = Math.max(36, Math.min(54, Math.floor(Math.min(arenaW / 5.4, height / 3.9))));
+
+      const slots = [];
+      for (let i = 0; i < 5; i++) {
+        slots.push({
+          x: barX + barW * 0.5,
+          y: slotTop + slotStep * (i + 0.5)
+        });
+      }
+      metrics = { barX, barW, arenaW, dieSize, holdDieSize, slots };
+
+      // Keep resting dice inside updated bounds
+      repositionRestingDice();
+    }
+
+    function restingArenaPos(idx) {
+      // Clean 2-row diamond/pentagon spread in the felt rolling arena
+      const cx = metrics.arenaW * 0.5;
+      const cy = height * 0.52;
+      const dx = Math.min(metrics.arenaW * 0.27, metrics.dieSize * 1.55);
+      const dy = Math.min(height * 0.23, metrics.dieSize * 1.15);
+      const pts = [
+        { x: cx - dx, y: cy - dy * 0.85 },
+        { x: cx,      y: cy - dy * 0.95 },
+        { x: cx + dx, y: cy - dy * 0.85 },
+        { x: cx - dx * 0.55, y: cy + dy * 0.9 },
+        { x: cx + dx * 0.55, y: cy + dy * 0.9 }
+      ];
+      return pts[idx % 5];
+    }
+
+    function repositionRestingDice() {
+      if (rollAnim) return;
+      for (let i = 0; i < 5; i++) {
+        const d = dice[i];
+        if (dragState && dragState.dieIdx === i) continue;
+        if (d.held) {
+          d.x = metrics.slots[i].x;
+          d.y = metrics.slots[i].y;
+          d.z = 0;
+        } else {
+          const pad = metrics.dieSize * 0.75;
+          if (d.x < pad || d.x > metrics.arenaW - pad || d.y < pad || d.y > height - pad) {
+            const p = restingArenaPos(i);
+            d.x = p.x;
+            d.y = p.y;
+          }
+        }
+      }
+    }
+
+    function targetQuatWithYaw(val, yawRad) {
+      const base = TARGET_QUATS[val] || TARGET_QUATS[1];
+      if (!yawRad) return base.slice();
+      return qNorm(qMul(qFromAxisAngle(0, 0, 1, yawRad), base));
+    }
+
+    function syncFromState(turnState, instantSnap = false) {
+      const vals = turnState.diceValues || [1,2,3,4,5];
+      const held = turnState.heldMask || [false,false,false,false,false];
+
+      for (let i = 0; i < 5; i++) {
+        const d = dice[i];
+        const prevHeld = d.held;
+        d.value = vals[i];
+        d.held = !!held[i];
+
+        if (instantSnap) {
+          d.slide = null;
+          d.z = 0;
+          if (d.held) {
+            d.x = metrics.slots[i].x;
+            d.y = metrics.slots[i].y;
+            d.q = TARGET_QUATS[d.value].slice();
+          } else {
+            const p = restingArenaPos(i);
+            d.x = p.x;
+            d.y = p.y;
+            d.q = targetQuatWithYaw(d.value, ((i * 0.41) % 0.5) - 0.25);
+          }
+        } else if (prevHeld !== d.held && !rollAnim) {
+          animateSlide(i, d.held);
+        }
+      }
+    }
+
+    function animateSlide(idx, toHeld) {
+      const d = dice[idx];
+      d.held = toHeld;
+      let toX, toY, toQ;
+      if (toHeld) {
+        toX = metrics.slots[idx].x;
+        toY = metrics.slots[idx].y;
+        toQ = TARGET_QUATS[d.value].slice();
+      } else {
+        // Pick an uncluttered arena spot near resting position
+        const base = restingArenaPos(idx);
+        toX = base.x;
+        toY = base.y;
+        const minDist = metrics.dieSize * 1.25;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          let clash = false;
+          for (let j = 0; j < 5; j++) {
+            if (j === idx || dice[j].held) continue;
+            if (Math.hypot(dice[j].x - toX, dice[j].y - toY) < minDist) { clash = true; break; }
+          }
+          if (!clash) break;
+          const ang = attempt * 1.1;
+          toX = Math.max(metrics.dieSize, Math.min(metrics.arenaW - metrics.dieSize, base.x + Math.cos(ang) * minDist));
+          toY = Math.max(metrics.dieSize, Math.min(height - metrics.dieSize, base.y + Math.sin(ang) * minDist));
+        }
+        toQ = targetQuatWithYaw(d.value, ((idx * 0.37) % 0.4) - 0.2);
+      }
+      d.slide = {
+        fromX: d.x,
+        fromY: d.y,
+        fromQ: d.q.slice(),
+        toX,
+        toY,
+        toQ,
+        startAt: performance.now(),
+        dur: 210
+      };
+    }
+
+    function generateRollPayload(turnSeq, rollNumber, heldMask, currentValues) {
+      const seedArr = new Uint32Array(1);
+      crypto.getRandomValues(seedArr);
+      const seed = seedArr[0] || 1337;
+      const rng = mulberry32(seed);
+      const initialImpulses = [];
+      const finalValues = [];
+      for (let i = 0; i < 5; i++) {
+        if (heldMask[i]) {
+          finalValues.push(currentValues[i]);
+          initialImpulses.push({ vx: 0, vy: 0, vz: 0, wx: 0, wy: 0, wz: 0, yaw: 0 });
+        } else {
+          const val = 1 + Math.floor(rng() * 6);
+          finalValues.push(val);
+          initialImpulses.push({
+            vx: (rng() - 0.5) * 460,
+            vy: (rng() - 0.5) * 420,
+            vz: 210 + rng() * 140,
+            wx: (rng() - 0.5) * 20,
+            wy: (rng() - 0.5) * 20,
+            wz: (rng() - 0.5) * 14,
+            yaw: (rng() - 0.5) * 0.7
+          });
+        }
+      }
+      return {
+        rollId: 'r_' + randomHex(4),
+        turnSeq,
+        rollNumber,
+        seed,
+        heldMask: heldMask.map(Boolean),
+        initialImpulses,
+        finalValues,
+        startedAt: Date.now()
+      };
+    }
+
+    /**
+     * Plays a deterministic seeded 3D roll trajectory from ROLL_START payload.
+     * If device woke late (elapsed > ANIM_MS), snaps immediately to finalValues.
+     */
+    function playRollPayload(payload, { silent = false } = {}) {
+      if (!payload) return;
+      dragState = null;
+
+      // Normalize physics space (0..1000 x 0..650) so trajectories are resolution-independent
+      const simW = 1000;
+      const simH = 650;
+      const simPad = 105;
+      const simMinDist = 172;
+      const rng = mulberry32(payload.seed);
+
+      const simDice = [];
+      for (let i = 0; i < 5; i++) {
+        const held = !!payload.heldMask[i];
+        const imp = payload.initialImpulses[i] || { vx: 0, vy: 0, vz: 0, wx: 0, wy: 0, wz: 0, yaw: 0 };
+        const val = payload.finalValues[i];
+        dice[i].held = held;
+        dice[i].value = val;
+        dice[i].slide = null;
+        if (held) {
+          dice[i].x = metrics.slots[i].x;
+          dice[i].y = metrics.slots[i].y;
+          dice[i].z = 0;
+          dice[i].q = TARGET_QUATS[val].slice();
+          simDice.push(null);
+        } else {
+          // Spawn deterministically near left-center wall throwing rightward/inward
+          const sx = 170 + (i % 3) * 150 + (rng() - 0.5) * 40;
+          const sy = 210 + Math.floor(i / 3) * 210 + (rng() - 0.5) * 40;
+          simDice.push({
+            i,
+            x: sx,
+            y: sy,
+            z: 36 + rng() * 28,
+            vx: imp.vx + 160,
+            vy: imp.vy,
+            vz: imp.vz,
+            wx: imp.wx,
+            wy: imp.wy,
+            wz: imp.wz,
+            q: qNorm([rng()-0.5, rng()-0.5, rng()-0.5, rng()-0.5]),
+            targetQ: targetQuatWithYaw(val, imp.yaw || 0),
+            bounces: 0
+          });
+        }
+      }
+
+      // Pre-simulate 54 fixed steps (900ms @ 60Hz) for 100% deterministic trajectories
+      const steps = 54;
+      const dt = 1 / 60;
+      const frames = [];
+      const bounceEvents = [];
+
+      for (let step = 0; step <= steps; step++) {
+        const prog = step / steps;
+        // Record snapshot
+        const snap = [];
+        for (let i = 0; i < 5; i++) {
+          const sd = simDice[i];
+          if (!sd) { snap.push(null); continue; }
+          snap.push({ x: sd.x, y: sd.y, z: sd.z, q: sd.q.slice() });
+        }
+        frames.push(snap);
+        if (step === steps) break;
+
+        // Physics step
+        for (let i = 0; i < 5; i++) {
+          const sd = simDice[i];
+          if (!sd) continue;
+          sd.vz -= 1280 * dt;
+          sd.x += sd.vx * dt;
+          sd.y += sd.vy * dt;
+          sd.z += sd.vz * dt;
+
+          // Floor bounce
+          if (sd.z < 0) {
+            sd.z = 0;
+            if (Math.abs(sd.vz) > 48) {
+              const intensity = Math.min(1, Math.abs(sd.vz) / 360);
+              if (sd.bounces < 3) bounceEvents.push({ step, intensity });
+              sd.bounces++;
+              sd.vz = -sd.vz * 0.44;
+              sd.vx *= 0.80;
+              sd.vy *= 0.80;
+              sd.wx *= 0.72;
+              sd.wy *= 0.72;
+            } else {
+              sd.vz = 0;
+              sd.vx *= 0.84;
+              sd.vy *= 0.84;
+              sd.wx *= 0.78;
+              sd.wy *= 0.78;
+              sd.wz *= 0.82;
+            }
+          }
+
+          // Wall collisions
+          if (sd.x < simPad) { sd.x = simPad; sd.vx = Math.abs(sd.vx) * 0.65; }
+          if (sd.x > simW - simPad) { sd.x = simW - simPad; sd.vx = -Math.abs(sd.vx) * 0.65; }
+          if (sd.y < simPad) { sd.y = simPad; sd.vy = Math.abs(sd.vy) * 0.65; }
+          if (sd.y > simH - simPad) { sd.y = simH - simPad; sd.vy = -Math.abs(sd.vy) * 0.65; }
+
+          // Angular integration + smooth convergence to final target face
+          const ang = Math.hypot(sd.wx, sd.wy, sd.wz) * dt;
+          if (ang > 0.0001) {
+            const inv = 1 / Math.hypot(sd.wx, sd.wy, sd.wz);
+            const dq = qFromAxisAngle(sd.wx * inv, sd.wy * inv, sd.wz * inv, ang);
+            sd.q = qNorm(qMul(dq, sd.q));
+          }
+          if (prog > 0.58) {
+            const blend = Math.min(1, (prog - 0.58) / 0.36);
+            sd.q = qSlerp(sd.q, sd.targetQ, blend * 0.38);
+          }
+        }
+
+        // Die-to-die elastic separation
+        for (let i = 0; i < 5; i++) {
+          const a = simDice[i];
+          if (!a) continue;
+          for (let j = i + 1; j < 5; j++) {
+            const b = simDice[j];
+            if (!b) continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.hypot(dx, dy) || 0.01;
+            if (dist < simMinDist) {
+              const overlap = (simMinDist - dist) * 0.52;
+              const nx = dx / dist, ny = dy / dist;
+              a.x -= nx * overlap; a.y -= ny * overlap;
+              b.x += nx * overlap; b.y += ny * overlap;
+              const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+              if (rel < 0) {
+                const imp = -rel * 0.65;
+                a.vx -= nx * imp; a.vy -= ny * imp;
+                b.vx += nx * imp; b.vy += ny * imp;
+              }
+            }
+          }
+        }
+      }
+
+      // Enforce exact final resting face & clean non-overlapping positions on final frame
+      const lastSnap = frames[frames.length - 1];
+      for (let i = 0; i < 5; i++) {
+        if (lastSnap[i] && simDice[i]) {
+          lastSnap[i].z = 0;
+          lastSnap[i].q = simDice[i].targetQ.slice();
+        }
+      }
+
+      const elapsed = Math.max(0, Date.now() - (payload.startedAt || Date.now()));
+      if (elapsed >= ANIM_MS) {
+        // Late-joining / waking device: snap cleanly to settled state
+        applySimFrame(lastSnap, simW, simH);
+        rollAnim = null;
+        callbacks.onRollSettled(payload, true);
+        return;
+      }
+
+      if (!silent) SFX.playRattle();
+      rollAnim = {
+        payload,
+        frames,
+        bounceEvents,
+        lastBounceStep: -1,
+        simW,
+        simH,
+        startPerf: performance.now() - elapsed,
+        silent
+      };
+    }
+
+    function applySimFrame(snap, simW, simH) {
+      const marginX = metrics.dieSize * 0.68;
+      const marginY = metrics.dieSize * 0.68;
+      const usableW = Math.max(40, metrics.arenaW - marginX * 2);
+      const usableH = Math.max(40, height - marginY * 2);
+      for (let i = 0; i < 5; i++) {
+        const s = snap[i];
+        if (!s) continue;
+        dice[i].x = marginX + (s.x / simW) * usableW;
+        dice[i].y = marginY + (s.y / simH) * usableH;
+        dice[i].z = s.z * 0.55;
+        dice[i].q = s.q;
+      }
+    }
+
+    // 3D Rounded Cube Rendering (Top-Down Perspective Camera)
+    function project3D(cx, cy, cz, px, py, pz, halfSize) {
+      const camZ = 760;
+      const worldX = cx + px * halfSize;
+      const worldY = cy + py * halfSize;
+      const worldZ = cz + pz * halfSize;
+      const scale = camZ / (camZ - worldZ);
+      const viewCx = metrics.arenaW * 0.5;
+      const viewCy = height * 0.5;
+      return {
+        x: viewCx + (worldX - viewCx) * scale,
+        y: viewCy + (worldY - viewCy) * scale,
+        scale
+      };
+    }
+
+    function draw3DDie(d, isHeldHighlight) {
+      const size = (d.held && !(dragState && dragState.dieIdx === d.index)) ? metrics.holdDieSize : metrics.dieSize;
+      const half = size * 0.5;
+      const cx = d.x;
+      const cy = d.y;
+      const cz = d.z + half;
+
+      // Altitude-aware drop shadow on felt
+      const shOffset = 4 + d.z * 0.24;
+      const shScale = Math.max(0.76, 1 - d.z * 0.0022);
+      const shAlpha = Math.max(0.16, 0.44 - d.z * 0.0024);
+      ctx.save();
+      ctx.fillStyle = `rgba(3, 10, 7, ${shAlpha.toFixed(3)})`;
+      ctx.beginPath();
+      const sw = size * 0.96 * shScale;
+      ctx.roundRect(cx - sw/2 + shOffset * 0.65, cy - sw/2 + shOffset, sw, sw, size * 0.22);
+      ctx.fill();
+      ctx.restore();
+
+      // Determine visible faces via back-face culling (view ray ~ [0, 0, +1])
+      const visible = [];
+      for (const f of FACE_DEFS) {
+        const rn = qRotVec(d.q, f.n);
+        if (rn[2] <= 0.02) continue;
+        const ru = qRotVec(d.q, f.u);
+        const rv = qRotVec(d.q, f.v);
+        visible.push({ f, rn, ru, rv, depth: rn[2] });
+      }
+      visible.sort((a, b) => a.depth - b.depth);
+
+      // Light vector from top-left-front
+      const lx = -0.35, ly = -0.42, lz = 0.84;
+
+      for (const item of visible) {
+        const { f, rn, ru, rv } = item;
+        const light = Math.max(0.42, Math.min(1.06, rn[0]*lx + rn[1]*ly + rn[2]*lz + 0.16));
+
+        // 4 corners of the face
+        const cPts = [
+          [-1, -1], [1, -1], [1, 1], [-1, 1]
+        ].map(([su, sv]) => {
+          const lx3 = f.n[0] + f.u[0]*su + f.v[0]*sv;
+          const ly3 = f.n[1] + f.u[1]*su + f.v[1]*sv;
+          const lz3 = f.n[2] + f.u[2]*su + f.v[2]*sv;
+          const r3 = qRotVec(d.q, [lx3, ly3, lz3]);
+          return project3D(cx, cy, cz, r3[0], r3[1], r3[2], half);
+        });
+
+        // Ivory color shaded by face lighting (subtle golden tint when held)
+        const rCol = Math.min(255, Math.round((d.held ? 255 : 252) * light));
+        const gCol = Math.min(255, Math.round((d.held ? 246 : 247) * light));
+        const bCol = Math.min(255, Math.round((d.held ? 216 : 235) * light));
+
+        // Draw face polygon with slight rounded corners via quadratic curves
+        ctx.beginPath();
+        const radFrac = 0.19;
+        for (let k = 0; k < 4; k++) {
+          const prev = cPts[(k + 3) % 4];
+          const curr = cPts[k];
+          const next = cPts[(k + 1) % 4];
+          const pA = { x: curr.x + (prev.x - curr.x) * radFrac, y: curr.y + (prev.y - curr.y) * radFrac };
+          const pB = { x: curr.x + (next.x - curr.x) * radFrac, y: curr.y + (next.y - curr.y) * radFrac };
+          if (k === 0) ctx.moveTo(pA.x, pA.y);
+          else ctx.lineTo(pA.x, pA.y);
+          ctx.quadraticCurveTo(curr.x, curr.y, pB.x, pB.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = `rgb(${rCol},${gCol},${bCol})`;
+        ctx.fill();
+        ctx.lineWidth = isHeldHighlight ? 1.8 : 1.1;
+        ctx.strokeStyle = isHeldHighlight ? 'rgba(229, 185, 76, 0.92)' : 'rgba(130, 118, 96, 0.45)';
+        ctx.stroke();
+
+        // Draw recessed 3D-projected pips on this face
+        const pips = PIP_COORDS[f.val];
+        const pipBaseR = size * 0.094;
+        for (let p = 0; p < pips.length; p++) {
+          const [pu, pv] = pips[p];
+          const px3 = f.n[0] + f.u[0]*pu + f.v[0]*pv;
+          const py3 = f.n[1] + f.u[1]*pu + f.v[1]*pv;
+          const pz3 = f.n[2] + f.u[2]*pu + f.v[2]*pv;
+          const rp = qRotVec(d.q, [px3, py3, pz3]);
+          const scr = project3D(cx, cy, cz, rp[0], rp[1], rp[2], half);
+
+          // Foreshorten pip ellipse according to face tilt
+          const ux = ru[0], uy = ru[1];
+          const vx = rv[0], vy = rv[1];
+          const major = pipBaseR * scr.scale;
+          const minor = Math.max(1.2, major * Math.abs(rn[2]));
+          const tiltAngle = Math.atan2(rn[1], rn[0]) + Math.PI * 0.5;
+
+          const isCenterGold = (f.val === 1 || (f.val === 5 && p === 2));
+          ctx.save();
+          ctx.translate(scr.x, scr.y);
+          ctx.rotate(tiltAngle);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, major, minor, 0, 0, Math.PI * 2);
+          ctx.fillStyle = isCenterGold ? '#b98216' : '#132820';
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawTrayBackground() {
+      // Emerald felt rolling arena
+      const grad = ctx.createRadialGradient(
+        metrics.arenaW * 0.48, height * 0.48, 12,
+        metrics.arenaW * 0.5, height * 0.5, Math.max(metrics.arenaW, height) * 0.72
+      );
+      grad.addColorStop(0, '#18543c');
+      grad.addColorStop(0.75, '#103c2a');
+      grad.addColorStop(1, '#0b2b1e');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, metrics.arenaW, height);
+
+      // Subtle inner rail shadow around rolling arena
+      ctx.strokeStyle = 'rgba(0,0,0,0.38)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, metrics.arenaW - 4, height - 4);
+
+      // Docked Side Reserve Bar on right
+      const draggingIntoReserve = dragState && dragState.moved && !dice[dragState.dieIdx].held && dragState.currX >= metrics.barX - 12;
+      const draggingOutOfReserve = dragState && dragState.moved && dice[dragState.dieIdx].held && dragState.currX < metrics.barX;
+
+      ctx.fillStyle = draggingIntoReserve ? '#153829' : '#0b2118';
+      ctx.fillRect(metrics.barX, 0, metrics.barW, height);
+
+      // Divider walnut strip
+      ctx.fillStyle = draggingIntoReserve ? '#e5b94c' : '#4d301b';
+      ctx.fillRect(metrics.barX - 2, 0, 4, height);
+
+      // Reserve Bar header label
+      ctx.fillStyle = draggingIntoReserve ? '#fde68a' : '#9ab3a8';
+      ctx.font = '800 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('RESERVE', metrics.barX + metrics.barW * 0.5, 12);
+
+      // 5 Recessed Reserve Bays
+      const slotS = metrics.holdDieSize + 8;
+      for (let i = 0; i < 5; i++) {
+        const s = metrics.slots[i];
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(s.x - slotS/2, s.y - slotS/2, slotS, slotS, 8);
+        ctx.fillStyle = dice[i].held ? 'rgba(229, 185, 76, 0.12)' : 'rgba(0, 0, 0, 0.24)';
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = dice[i].held
+          ? 'rgba(229, 185, 76, 0.45)'
+          : (draggingIntoReserve ? 'rgba(229, 185, 76, 0.35)' : 'rgba(255, 255, 255, 0.1)');
+        if (!dice[i].held) ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (draggingOutOfReserve) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.55)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(8, 8, metrics.arenaW - 18, height - 16);
+        ctx.restore();
+      }
+    }
+
+    function tick(now) {
+      rafId = requestAnimationFrame(tick);
+      if (!ctx) return;
+
+      // Update active roll animation
+      if (rollAnim) {
+        const elapsed = now - rollAnim.startPerf;
+        const frac = Math.min(1, Math.max(0, elapsed / ANIM_MS));
+        const fIdx = frac * (rollAnim.frames.length - 1);
+        const i0 = Math.floor(fIdx);
+        const i1 = Math.min(rollAnim.frames.length - 1, i0 + 1);
+        const alpha = fIdx - i0;
+
+        // Play impact audio at deterministic bounce steps
+        if (!rollAnim.silent) {
+          for (const ev of rollAnim.bounceEvents) {
+            if (ev.step > rollAnim.lastBounceStep && ev.step <= i0) {
+              SFX.playBounce(ev.intensity);
+            }
+          }
+          rollAnim.lastBounceStep = i0;
+        }
+
+        // Interpolate between fixed frames for ultra-smooth 60–120Hz display
+        const snap0 = rollAnim.frames[i0];
+        const snap1 = rollAnim.frames[i1];
+        const blended = [];
+        for (let i = 0; i < 5; i++) {
+          if (!snap0[i]) { blended.push(null); continue; }
+          blended.push({
+            x: snap0[i].x + (snap1[i].x - snap0[i].x) * alpha,
+            y: snap0[i].y + (snap1[i].y - snap0[i].y) * alpha,
+            z: snap0[i].z + (snap1[i].z - snap0[i].z) * alpha,
+            q: qSlerp(snap0[i].q, snap1[i].q, alpha)
+          });
+        }
+        applySimFrame(blended, rollAnim.simW, rollAnim.simH);
+
+        if (frac >= 1) {
+          const finished = rollAnim.payload;
+          rollAnim = null;
+          callbacks.onRollSettled(finished, false);
+        }
+      }
+
+      // Update tap-to-slide / remote HOLD_MOVE smooth glide animations
+      for (let i = 0; i < 5; i++) {
+        const d = dice[i];
+        if (!d.slide) continue;
+        const t = Math.min(1, (now - d.slide.startAt) / d.slide.dur);
+        const ease = 1 - Math.pow(1 - t, 3);
+        d.x = d.slide.fromX + (d.slide.toX - d.slide.fromX) * ease;
+        d.y = d.slide.fromY + (d.slide.toY - d.slide.fromY) * ease;
+        d.z = Math.sin(t * Math.PI) * 24;
+        d.q = qSlerp(d.slide.fromQ, d.slide.toQ, ease);
+        if (t >= 1) {
+          d.x = d.slide.toX;
+          d.y = d.slide.toY;
+          d.z = 0;
+          d.q = d.slide.toQ;
+          d.slide = null;
+        }
+      }
+
+      // Render frame
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      drawTrayBackground();
+
+      // Render lower dice first, dragged/lifted dice on top
+      const order = dice.slice().sort((a, b) => a.z - b.z);
+      for (const d of order) {
+        const isDragged = dragState && dragState.dieIdx === d.index;
+        draw3DDie(d, d.held || isDragged);
+      }
+      ctx.restore();
+    }
+
+    function canvasPoint(ev) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+    }
+
+    function hitTestDie(px, py) {
+      // Check in reverse z-order so topmost die wins
+      const order = dice.slice().sort((a, b) => b.z - a.z);
+      for (const d of order) {
+        const rad = (d.held ? metrics.holdDieSize : metrics.dieSize) * 0.66;
+        if (Math.abs(px - d.x) <= rad && Math.abs(py - d.y) <= rad) return d.index;
+      }
+      return -1;
+    }
+
+    function bindPointerEvents() {
+      canvas.addEventListener('pointerdown', (ev) => {
+        if (rollAnim) return;
+        const pt = canvasPoint(ev);
+        if (!callbacks.canInteract()) {
+          if (callbacks.canRollTap() && pt.x < metrics.barX) {
+            callbacks.onRollTap();
+          }
+          return;
+        }
+        const hitIdx = hitTestDie(pt.x, pt.y);
+        if (hitIdx < 0) return;
+
+        canvas.setPointerCapture(ev.pointerId);
+        const d = dice[hitIdx];
+        d.slide = null;
+        d.z = 22;
+        dragState = {
+          dieIdx: hitIdx,
+          pointerId: ev.pointerId,
+          startX: pt.x,
+          startY: pt.y,
+          currX: pt.x,
+          currY: pt.y,
+          startTime: performance.now(),
+          moved: false,
+          origX: d.x,
+          origY: d.y
+        };
+      });
+
+      canvas.addEventListener('pointermove', (ev) => {
+        if (!dragState || ev.pointerId !== dragState.pointerId) return;
+        const pt = canvasPoint(ev);
+        dragState.currX = pt.x;
+        dragState.currY = pt.y;
+        const dist = Math.hypot(pt.x - dragState.startX, pt.y - dragState.startY);
+        if (dist > 9) dragState.moved = true;
+        const d = dice[dragState.dieIdx];
+        d.x = Math.max(18, Math.min(width - 18, pt.x));
+        d.y = Math.max(18, Math.min(height - 18, pt.y));
+      });
+
+      function finishDrag(ev) {
+        if (!dragState || ev.pointerId !== dragState.pointerId) return;
+        const st = dragState;
+        dragState = null;
+        const d = dice[st.dieIdx];
+        d.z = 0;
+
+        const dt = performance.now() - st.startTime;
+        const prevHeld = d.held;
+        let nextHeld = prevHeld;
+
+        if (!st.moved && dt < 340) {
+          // Animated tap-to-slide fallback
+          nextHeld = !prevHeld;
+        } else {
+          // Physical drop target: right of divider = Reserve Bar, left = Rolling Arena
+          nextHeld = st.currX >= metrics.barX - 12;
+        }
+
+        if (nextHeld !== prevHeld) {
+          animateSlide(st.dieIdx, nextHeld);
+          callbacks.onHoldMove(st.dieIdx, nextHeld);
+        } else {
+          // Dropped back on same side: keep custom arena position or snap back into Reserve bay
+          if (nextHeld) {
+            animateSlide(st.dieIdx, true);
+          } else {
+            const pad = metrics.dieSize * 0.65;
+            d.x = Math.max(pad, Math.min(metrics.arenaW - pad, d.x));
+            d.y = Math.max(pad, Math.min(height - pad, d.y));
+          }
+        }
+      }
+
+      canvas.addEventListener('pointerup', finishDrag);
+      canvas.addEventListener('pointercancel', finishDrag);
+    }
+
+    function init(el, cbs) {
+      canvas = el;
+      ctx = canvas.getContext('2d');
+      callbacks = Object.assign(callbacks, cbs || {});
+      computeLayout();
+      bindPointerEvents();
+      window.addEventListener('resize', computeLayout);
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', computeLayout);
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    }
+
+    return {
+      init,
+      computeLayout,
+      syncFromState,
+      animateSlide,
+      generateRollPayload,
+      playRollPayload,
+      isAnimating: () => !!rollAnim
+    };
+  })();
+
+  /* ============================================================================
+   * MODULE 5: MULTI-TRANSPORT SYNC ENGINE + AIRPLANE / OFFLINE WEBRTC QR SYNC
+   * ============================================================================ */
+  const SyncEngine = (() => {
+    const MQTT_BROKERS = [
+      'wss://broker.emqx.io:8084/mqtt',
+      'wss://broker.hivemq.com:8884/mqtt',
+      'wss://test.mosquitto.org:8081'
+    ];
+    const ICE_ONLINE = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+    let activeRoomId = 'LOCAL';
+    let activeToken = '';
+    let channelKey = '';
+    let isHostingJoin = false;
+    let airplaneModeActive = false;
+
+    // Transport handles
+    let bc = null;
+    let ws = null;
+    let wsConnected = false;
+    let brokerIdx = 0;
+    let reconnectTimer = null;
+    let reconnectDelay = 1200;
+    let pingTimer = null;
+    let mqttBuf = new Uint8Array(0);
+    let packetIdSeq = 1;
+
+    // Online & Airplane WebRTC peers: Map<peerId, { pc, dc, airplane, lastSeen }>
+    const peers = new Map();
+    const knownDevices = new Map(); // deviceId -> lastSeenMs
+    let wakeSuppressUntil = 0;
+
+    // Pending Airplane handshake state
+    let airPendingPc = null;
+    let airPendingDc = null;
+    let airPendingPeerId = null;
+
+    let handlers = {
+      onPacket: () => {},
+      onStatusChange: () => {},
+      getFullState: () => null,
+      onJoinGrantReceived: () => {}
+    };
+
+    function shortHash(str) {
+      let h1 = 0x811c9dc5, h2 = 0x01000193;
+      for (let i = 0; i < str.length; i++) {
+        const c = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+        h2 = Math.imul(h2 ^ (c + i), 0x85ebca6b) >>> 0;
+      }
+      return h1.toString(36).padStart(7, '0') + h2.toString(36).padStart(7, '0');
+    }
+
+    function deriveChannelKey(roomId, token) {
+      return `y1_${roomId}_${shortHash(roomId + ':' + token)}`;
+    }
+
+    // ---- Pure-JS MQTT 3.1.1 Binary Codec (with Multi-Byte Remaining Length) ----
+    function encodeRemainingLength(len) {
+      const out = [];
+      let x = len;
+      do {
+        let digit = x % 128;
+        x = Math.floor(x / 128);
+        if (x > 0) digit |= 0x80;
+        out.push(digit);
+      } while (x > 0);
+      return out;
+    }
+
+    function encodeUtf8String(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(2 + b.length);
+      out[0] = (b.length >> 8) & 0xff;
+      out[1] = b.length & 0xff;
+      out.set(b, 2);
+      return out;
+    }
+
+    function concatU8(arrays) {
+      let total = 0;
+      for (const a of arrays) total += a.length;
+      const out = new Uint8Array(total);
+      let off = 0;
+      for (const a of arrays) { out.set(a, off); off += a.length; }
+      return out;
+    }
+
+    function mqttConnectPacket(clientId) {
+      const proto = encodeUtf8String('MQTT');
+      const cid = encodeUtf8String(clientId);
+      const vh = concatU8([proto, new Uint8Array([4, 2, 0, 60])]); // v3.1.1, cleanSession, keepAlive=60s
+      const body = concatU8([vh, cid]);
+      return concatU8([new Uint8Array([0x10, ...encodeRemainingLength(body.length)]), body]);
+    }
+
+    function mqttSubscribePacket(topic) {
+      const pid = (packetIdSeq = (packetIdSeq % 65535) + 1);
+      const tBytes = encodeUtf8String(topic);
+      const body = concatU8([new Uint8Array([(pid >> 8) & 0xff, pid & 0xff]), tBytes, new Uint8Array([0])]);
+      return concatU8([new Uint8Array([0x82, ...encodeRemainingLength(body.length)]), body]);
+    }
+
+    function mqttPublishPacket(topic, payloadStr, retain = false) {
+      const tBytes = encodeUtf8String(topic);
+      const pBytes = new TextEncoder().encode(payloadStr);
+      const body = concatU8([tBytes, pBytes]);
+      const headerByte = retain ? 0x31 : 0x30;
+      return concatU8([new Uint8Array([headerByte, ...encodeRemainingLength(body.length)]), body]);
+    }
+
+    function mqttPingReqPacket() {
+      return new Uint8Array([0xC0, 0x00]);
+    }
+
+    function feedMqttBytes(chunk) {
+      mqttBuf = concatU8([mqttBuf, new Uint8Array(chunk)]);
+      while (mqttBuf.length >= 2) {
+        const header = mqttBuf[0];
+        let mult = 1, remLen = 0, idx = 1, complete = false;
+        while (idx < mqttBuf.length && idx <= 4) {
+          const byte = mqttBuf[idx++];
+          remLen += (byte & 0x7f) * mult;
+          mult *= 128;
+          if ((byte & 0x80) === 0) { complete = true; break; }
+        }
+        if (!complete) return;
+        const totalLen = idx + remLen;
+        if (mqttBuf.length < totalLen) return;
+
+        const pktBody = mqttBuf.slice(idx, totalLen);
+        mqttBuf = mqttBuf.slice(totalLen);
+
+        const pktType = header >> 4;
+        if (pktType === 2) {
+          // CONNACK
+          wsConnected = true;
+          reconnectDelay = 1200;
+          subscribeTopics();
+          sendHello(true);
+          notifyStatus();
+        } else if (pktType === 3) {
+          // PUBLISH
+          const tLen = (pktBody[0] << 8) | pktBody[1];
+          const topic = new TextDecoder().decode(pktBody.slice(2, 2 + tLen));
+          const qos = (header >> 1) & 0x03;
+          const pOff = 2 + tLen + (qos > 0 ? 2 : 0);
+          const payloadStr = new TextDecoder().decode(pktBody.slice(pOff));
+          handleIncomingRaw(payloadStr, 'mqtt', topic);
+        }
+      }
+    }
+
+    function subscribeTopics() {
+      if (!ws || ws.readyState !== 1) return;
+      if (channelKey) {
+        ws.send(mqttSubscribePacket(`yachti/v1/ch/${channelKey}`));
+      }
+      if (activeRoomId && activeRoomId !== 'LOCAL') {
+        ws.send(mqttSubscribePacket(`yachti/v1/join/${activeRoomId}`));
+      }
+    }
+
+    function connectMqtt() {
+      cleanupMqtt(false);
+      if (activeRoomId === 'LOCAL' || airplaneModeActive) return;
+      const url = MQTT_BROKERS[brokerIdx % MQTT_BROKERS.length];
+      notifyStatus();
+      try {
+        ws = new WebSocket(url, 'mqtt');
+        ws.binaryType = 'arraybuffer';
+      } catch (_) {
+        scheduleReconnect();
+        return;
+      }
+
+      const connectTimeout = setTimeout(() => {
+        if (!wsConnected && ws) {
+          try { ws.close(); } catch (_) {}
+        }
+      }, 6500);
+
+      ws.onopen = () => {
+        clearTimeout(connectTimeout);
+        mqttBuf = new Uint8Array(0);
+        const cid = 'y_' + MY_DEVICE_ID.slice(-6) + '_' + randomHex(2);
+        ws.send(mqttConnectPacket(cid));
+        clearInterval(pingTimer);
+        pingTimer = setInterval(() => {
+          if (ws && ws.readyState === 1) ws.send(mqttPingReqPacket());
+        }, 20000);
+      };
+
+      ws.onmessage = (ev) => {
+        if (ev.data instanceof ArrayBuffer) feedMqttBytes(ev.data);
+      };
+
+      ws.onerror = () => { clearTimeout(connectTimeout); };
+      ws.onclose = () => {
+        clearTimeout(connectTimeout);
+        wsConnected = false;
+        clearInterval(pingTimer);
+        notifyStatus();
+        if (activeRoomId !== 'LOCAL' && !airplaneModeActive) {
+          brokerIdx = (brokerIdx + 1) % MQTT_BROKERS.length;
+          scheduleReconnect();
+        }
+      };
+    }
+
+    function scheduleReconnect() {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => {
+        if (activeRoomId !== 'LOCAL' && !airplaneModeActive) connectMqtt();
+      }, reconnectDelay);
+      reconnectDelay = Math.min(18000, Math.round(reconnectDelay * 1.6));
+    }
+
+    function cleanupMqtt(resetBackoff = true) {
+      clearTimeout(reconnectTimer);
+      clearInterval(pingTimer);
+      wsConnected = false;
+      if (ws) {
+        ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
+        try { ws.close(); } catch (_) {}
+        ws = null;
+      }
+      if (resetBackoff) reconnectDelay = 1200;
+    }
+
+    // ---- Online WebRTC Mesh Signaling over MQTT ----
+    async function initiateOnlineWebRTC(remotePeerId) {
+      if (peers.has(remotePeerId) || MY_DEVICE_ID <= remotePeerId) return;
+      try {
+        const pc = new RTCPeerConnection({ iceServers: ICE_ONLINE });
+        const dc = pc.createDataChannel('yachti', { ordered: true });
+        attachPeer(remotePeerId, pc, dc, false);
+        pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            sendPacket({ type: 'RTC_ICE', targetId: remotePeerId, candidate: e.candidate }, { mqttOnly: true });
+          }
+        };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendPacket({ type: 'RTC_OFFER', targetId: remotePeerId, sdp: offer }, { mqttOnly: true });
+      } catch (_) {}
+    }
+
+    async function handleRtcSignal(pkt) {
+      if (pkt.targetId !== MY_DEVICE_ID) return;
+      const from = pkt.senderId;
+      if (pkt.type === 'RTC_OFFER') {
+        try {
+          closePeer(from);
+          const pc = new RTCPeerConnection({ iceServers: ICE_ONLINE });
+          pc.ondatachannel = (ev) => attachPeer(from, pc, ev.channel, false);
+          pc.onicecandidate = (e) => {
+            if (e.candidate) {
+              sendPacket({ type: 'RTC_ICE', targetId: from, candidate: e.candidate }, { mqttOnly: true });
+            }
+          };
+          peers.set(from, { pc, dc: null, airplane: false, lastSeen: Date.now() });
+          await pc.setRemoteDescription(new RTCSessionDescription(pkt.sdp));
+          const ans = await pc.createAnswer();
+          await pc.setLocalDescription(ans);
+          sendPacket({ type: 'RTC_ANSWER', targetId: from, sdp: ans }, { mqttOnly: true });
+        } catch (_) {}
+      } else if (pkt.type === 'RTC_ANSWER') {
+        const rec = peers.get(from);
+        if (rec && rec.pc && rec.pc.signalingState === 'have-local-offer') {
+          try { await rec.pc.setRemoteDescription(new RTCSessionDescription(pkt.sdp)); } catch (_) {}
+        }
+      } else if (pkt.type === 'RTC_ICE') {
+        const rec = peers.get(from);
+        if (rec && rec.pc && pkt.candidate) {
+          try { await rec.pc.addIceCandidate(new RTCIceCandidate(pkt.candidate)); } catch (_) {}
+        }
+      }
+    }
+
+    function attachPeer(peerId, pc, dc, isAirplane) {
+      const rec = { pc, dc, airplane: isAirplane, lastSeen: Date.now() };
+      peers.set(peerId, rec);
+      if (dc) {
+        dc.onopen = () => {
+          rec.lastSeen = Date.now();
+          knownDevices.set(peerId, Date.now());
+          if (isAirplane) airplaneModeActive = true;
+          notifyStatus();
+          // Immediately exchange HELLO + full state over fast P2P DataChannel
+          const st = handlers.getFullState();
+          if (st) {
+            sendRawToDc(dc, {
+              type: 'STATE_SYNC',
+              roomId: activeRoomId,
+              sessionToken: activeToken,
+              senderId: MY_DEVICE_ID,
+              state: st,
+              sentAt: Date.now()
+            });
+          }
+        };
+        dc.onmessage = (ev) => {
+          rec.lastSeen = Date.now();
+          handleIncomingRaw(ev.data, isAirplane ? 'airplane' : 'webrtc', '');
+        };
+        dc.onclose = () => {
+          closePeer(peerId);
+          notifyStatus();
+        };
+      }
+      pc.onconnectionstatechange = () => {
+        if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+          closePeer(peerId);
+          notifyStatus();
+        }
+      };
+    }
+
+    function closePeer(peerId) {
+      const rec = peers.get(peerId);
+      if (!rec) return;
+      try { if (rec.dc) rec.dc.close(); } catch (_) {}
+      try { if (rec.pc) rec.pc.close(); } catch (_) {}
+      peers.delete(peerId);
+    }
+
+    function closeAllPeers() {
+      for (const id of Array.from(peers.keys())) closePeer(id);
+      knownDevices.clear();
+    }
+
+    function sendRawToDc(dc, obj) {
+      if (dc && dc.readyState === 'open') {
+        try { dc.send(JSON.stringify(obj)); } catch (_) {}
+      }
+    }
+
+    // ---- ✈️ Airplane / Offline Sync: Compact SDP Codec (Zero External Servers) ----
+    function b64uEncode(str) {
+      const bytes = new TextEncoder().encode(str);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function b64uDecode(str) {
+      let s = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (s.length % 4) s += '=';
+      const bin = atob(s);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    }
+
+    function compactSdp(desc, meta) {
+      const lines = desc.sdp.split(/\r?\n/);
+      let u = '', p = '', f = '', s = 'actpass';
+      const cands = [];
+      for (const line of lines) {
+        if (line.startsWith('a=ice-ufrag:')) u = line.slice(12).trim();
+        else if (line.startsWith('a=ice-pwd:')) p = line.slice(10).trim();
+        else if (line.startsWith('a=fingerprint:sha-256 ')) f = line.slice(22).trim().replace(/:/g, '');
+        else if (line.startsWith('a=setup:')) s = line.slice(8).trim();
+        else if (line.startsWith('a=candidate:')) {
+          const parts = line.slice(12).trim().split(' ');
+          // Format: foundation comp proto prio ip port typ type
+          const proto = (parts[2] || '').toLowerCase();
+          const ip = parts[4];
+          const port = parseInt(parts[5], 10);
+          const typ = parts[7];
+          if (proto === 'udp' && ip && port && (typ === 'host' || typ === 'srflx')) {
+            // Keep up to 4 unique candidates, preferring IPv4 local host addresses
+            if (!cands.some(c => c[0] === ip && c[1] === port)) {
+              cands.push([ip, port, typ === 'host' ? 0 : 1]);
+            }
+          }
+        }
+      }
+      // Prioritize IPv4 local candidates so QR stays ultra-compact
+      cands.sort((a, b) => {
+        const a4 = /^\d+\.\d+\.\d+\.\d+$/.test(a[0]) ? 0 : 1;
+        const b4 = /^\d+\.\d+\.\d+\.\d+$/.test(b[0]) ? 0 : 1;
+        return (a4 - b4) || (a[2] - b[2]);
+      });
+      const compact = {
+        t: desc.type === 'offer' ? 'o' : 'a',
+        u, p, f, s,
+        c: cands.slice(0, 3),
+        d: MY_DEVICE_ID.slice(-6)
+      };
+      if (meta && meta.r) compact.r = meta.r;
+      if (meta && meta.k) compact.k = meta.k;
+      return 'YAIR:' + b64uEncode(JSON.stringify(compact));
+    }
+
+    function expandSdp(tokenStr) {
+      const clean = tokenStr.trim();
+      if (!clean.startsWith('YAIR:')) throw new Error('Invalid Airplane Sync code');
+      const data = JSON.parse(b64uDecode(clean.slice(5)));
+      // Re-insert colons into sha-256 fingerprint
+      const fp = data.f.match(/.{1,2}/g).join(':').toUpperCase();
+      const candLines = (data.c || []).map((c, idx) => {
+        const typ = c[2] === 1 ? 'srflx' : 'host';
+        const prio = 2122260223 - idx * 100;
+        return `a=candidate:${idx + 1} 1 udp ${prio} ${c[0]} ${c[1]} typ ${typ}`;
+      });
+      const sdp = [
+        'v=0',
+        'o=- 4611731400430051336 2 IN IP4 127.0.0.1',
+        's=-',
+        't=0 0',
+        'a=group:BUNDLE 0',
+        'a=msid-semantic: WMS',
+        'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
+        'c=IN IP4 0.0.0.0',
+        `a=ice-ufrag:${data.u}`,
+        `a=ice-pwd:${data.p}`,
+        'a=ice-options:trickle',
+        `a=fingerprint:sha-256 ${fp}`,
+        `a=setup:${data.s}`,
+        'a=mid:0',
+        'a=sctp-port:5000',
+        'a=max-message-size:262144',
+        ...candLines,
+        'a=end-of-candidates',
+        ''
+      ].join('\r\n');
+      return {
+        desc: { type: data.t === 'o' ? 'offer' : 'answer', sdp },
+        roomId: data.r || null,
+        sessionToken: data.k || null,
+        remoteShortId: data.d || randomHex(3)
+      };
+    }
+
+    function waitIceGathering(pc, maxMs = 2600) {
+      return new Promise((resolve) => {
+        if (pc.iceGatheringState === 'complete') return resolve();
+        let done = false;
+        let seenCand = false;
+        const finish = () => { if (!done) { done = true; resolve(); } };
+        const hardTimer = setTimeout(finish, maxMs);
+        let softTimer = null;
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') {
+            clearTimeout(hardTimer);
+            clearTimeout(softTimer);
+            finish();
+          }
+        };
+        pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            seenCand = true;
+            clearTimeout(softTimer);
+            softTimer = setTimeout(finish, 450);
+          } else if (seenCand) {
+            clearTimeout(hardTimer);
+            finish();
+          }
+        };
+      });
+    }
+
+    async function createAirplaneOffer(roomId, sessionToken) {
+      // Ensure local room credentials exist for packet validation
+      activeRoomId = roomId;
+      activeToken = sessionToken;
+      channelKey = deriveChannelKey(roomId, sessionToken);
+      airplaneModeActive = true;
+      cleanupMqtt(true);
+
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      const dc = pc.createDataChannel('yachti', { ordered: true });
+      airPendingPc = pc;
+      airPendingDc = dc;
+      airPendingPeerId = 'air_' + randomHex(4);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await waitIceGathering(pc, 2600);
+      return compactSdp(pc.localDescription, { r: roomId, k: sessionToken });
+    }
+
+    async function acceptAirplaneOffer(offerCode) {
+      const parsed = expandSdp(offerCode);
+      if (parsed.desc.type !== 'offer') throw new Error('Expected a Host Offer code');
+      if (!parsed.roomId || !parsed.sessionToken) throw new Error('Offer missing room credentials');
+
+      activeRoomId = parsed.roomId;
+      activeToken = parsed.sessionToken;
+      channelKey = deriveChannelKey(activeRoomId, activeToken);
+      airplaneModeActive = true;
+      cleanupMqtt(true);
+
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      const peerId = 'air_host_' + parsed.remoteShortId;
+      pc.ondatachannel = (ev) => attachPeer(peerId, pc, ev.channel, true);
+
+      await pc.setRemoteDescription(new RTCSessionDescription(parsed.desc));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await waitIceGathering(pc, 2600);
+
+      notifyStatus();
+      return {
+        answerCode: compactSdp(pc.localDescription, {}),
+        roomId: activeRoomId,
+        sessionToken: activeToken
+      };
+    }
+
+    async function completeAirplaneHost(answerCode) {
+      if (!airPendingPc) throw new Error('Create a Host Offer first');
+      const parsed = expandSdp(answerCode);
+      if (parsed.desc.type !== 'answer') throw new Error('Expected a Guest Answer code');
+      const pc = airPendingPc;
+      const dc = airPendingDc;
+      const peerId = 'air_guest_' + parsed.remoteShortId;
+      airPendingPc = null;
+      airPendingDc = null;
+      attachPeer(peerId, pc, dc, true);
+      await pc.setRemoteDescription(new RTCSessionDescription(parsed.desc));
+      notifyStatus();
+    }
+
+    // ---- Packet Validation & Dispatch ----
+    function handleIncomingRaw(rawStr, transport, topic) {
+      let pkt;
+      try { pkt = JSON.parse(rawStr); } catch (_) { return; }
+      if (!pkt || typeof pkt !== 'object') return;
+      if (pkt.senderId === MY_DEVICE_ID) return;
+
+      // Timed 4-character Room Code Join Handshake (strictly separated from gameplay channel)
+      if (topic && topic.startsWith('yachti/v1/join/')) {
+        if (pkt.type === 'JOIN_REQ' && pkt.roomId === activeRoomId && isHostingJoin && activeToken) {
+          if (ws && ws.readyState === 1) {
+            const grant = JSON.stringify({
+              type: 'JOIN_GRANT',
+              roomId: activeRoomId,
+              sessionToken: activeToken,
+              targetId: pkt.senderId,
+              senderId: MY_DEVICE_ID
+            });
+            ws.send(mqttPublishPacket(`yachti/v1/join/${activeRoomId}`, grant, false));
+          }
+        } else if (pkt.type === 'JOIN_GRANT' && pkt.targetId === MY_DEVICE_ID && pkt.roomId === activeRoomId && pkt.sessionToken) {
+          handlers.onJoinGrantReceived(pkt.roomId, pkt.sessionToken);
+        }
+        return;
+      }
+
+      // STRICT CRYPTOGRAPHIC ISOLATION: Unconditionally reject mismatched roomId or sessionToken
+      if (pkt.roomId !== activeRoomId || pkt.sessionToken !== activeToken) {
+        return;
+      }
+
+      knownDevices.set(pkt.senderId, Date.now());
+      notifyStatus();
+
+      if (pkt.type === 'RTC_OFFER' || pkt.type === 'RTC_ANSWER' || pkt.type === 'RTC_ICE') {
+        handleRtcSignal(pkt);
+        return;
+      }
+
+      if (pkt.type === 'HELLO') {
+        if (!airplaneModeActive && transport === 'mqtt') {
+          initiateOnlineWebRTC(pkt.senderId);
+        }
+        // Reply with full state snapshot so reconnecting / joining device converges immediately
+        const st = handlers.getFullState();
+        if (st && Date.now() > wakeSuppressUntil) {
+          sendPacket({ type: 'STATE_SYNC', state: st });
+        }
+        return;
+      }
+
+      handlers.onPacket(pkt, transport);
+    }
+
+    function sendPacket(payload, { mqttOnly = false, retain = false } = {}) {
+      if (activeRoomId === 'LOCAL' || !activeToken) return;
+      if (Date.now() < wakeSuppressUntil && payload.type !== 'HELLO') return;
+
+      const full = Object.assign({}, payload, {
+        roomId: activeRoomId,
+        sessionToken: activeToken,
+        senderId: MY_DEVICE_ID,
+        sentAt: Date.now()
+      });
+      const json = JSON.stringify(full);
+
+      // 1. BroadcastChannel (<5ms same-device tabs)
+      if (!mqttOnly && bc) {
+        try { bc.postMessage(json); } catch (_) {}
+      }
+
+      // 2. Direct WebRTC DataChannels (<50ms online / <20ms Airplane PAN)
+      let sentViaRtc = 0;
+      if (!mqttOnly) {
+        for (const rec of peers.values()) {
+          if (rec.dc && rec.dc.readyState === 'open') {
+            try { rec.dc.send(json); sentViaRtc++; } catch (_) {}
+          }
+        }
+      }
+
+      // 3. MQTT-over-WSS (discovery, signaling, & resilient fallback)
+      if (!airplaneModeActive && ws && ws.readyState === 1 && channelKey) {
+        // Always mirror on MQTT unless purely airplane mode, ensuring late/unmeshed peers never miss an event
+        try { ws.send(mqttPublishPacket(`yachti/v1/ch/${channelKey}`, json, retain)); } catch (_) {}
+      }
+    }
+
+    function sendHello(retain = false) {
+      if (activeRoomId === 'LOCAL' || !activeToken) return;
+      sendPacket({ type: 'HELLO' }, { retain });
+    }
+
+    function requestJoinByCode(roomCode) {
+      activeRoomId = roomCode;
+      activeToken = '';
+      channelKey = '';
+      airplaneModeActive = false;
+      connectMqtt();
+      const sendReq = () => {
+        if (ws && ws.readyState === 1) {
+          ws.send(mqttSubscribePacket(`yachti/v1/join/${roomCode}`));
+          ws.send(mqttPublishPacket(`yachti/v1/join/${roomCode}`, JSON.stringify({
+            type: 'JOIN_REQ',
+            roomId: roomCode,
+            senderId: MY_DEVICE_ID
+          }), false));
+        }
+      };
+      setTimeout(sendReq, 700);
+      setTimeout(sendReq, 2200);
+    }
+
+    function joinChannel(roomId, sessionToken, { isAirplane = false } = {}) {
+      if (activeRoomId === roomId && activeToken === sessionToken && !!airplaneModeActive === !!isAirplane) {
+        if (!isAirplane && !wsConnected) connectMqtt();
+        return;
+      }
+      if (!isAirplane) closeAllPeers();
+      if (bc) { try { bc.close(); } catch (_) {} bc = null; }
+
+      activeRoomId = roomId;
+      activeToken = sessionToken;
+      channelKey = (roomId !== 'LOCAL' && sessionToken) ? deriveChannelKey(roomId, sessionToken) : '';
+      airplaneModeActive = !!isAirplane;
+
+      if (roomId !== 'LOCAL' && typeof BroadcastChannel !== 'undefined') {
+        try {
+          bc = new BroadcastChannel(`yachti-sync-${roomId}`);
+          bc.onmessage = (ev) => handleIncomingRaw(ev.data, 'bc', '');
+        } catch (_) {}
+      }
+
+      if (roomId !== 'LOCAL' && !airplaneModeActive) {
+        connectMqtt();
+      } else {
+        cleanupMqtt(true);
+      }
+      notifyStatus();
+    }
+
+    function disconnect() {
+      isHostingJoin = false;
+      airplaneModeActive = false;
+      activeRoomId = 'LOCAL';
+      activeToken = '';
+      channelKey = '';
+      cleanupMqtt(true);
+      closeAllPeers();
+      if (bc) { try { bc.close(); } catch (_) {} bc = null; }
+      notifyStatus();
+    }
+
+    function getStatus() {
+      // Prune stale peer heartbeats > 90s for online view
+      const now = Date.now();
+      let openRtc = 0;
+      let airRtc = 0;
+      for (const rec of peers.values()) {
+        if (rec.dc && rec.dc.readyState === 'open') {
+          openRtc++;
+          if (rec.airplane) airRtc++;
+        }
+      }
+      let activePeerCount = openRtc;
+      for (const [id, ts] of knownDevices.entries()) {
+        if (now - ts < 120000 && !peers.has(id)) activePeerCount++;
+      }
+      const deviceCount = 1 + activePeerCount;
+      if (airplaneModeActive) {
+        return {
+          kind: airRtc > 0 ? 'airplane' : 'connecting',
+          label: airRtc > 0 ? `✈️ Airplane · ${deviceCount}` : '✈️ Pairing…',
+          deviceCount,
+          openRtc
+        };
+      }
+      if (activeRoomId === 'LOCAL') {
+        return { kind: 'local', label: 'Local', deviceCount: 1, openRtc: 0 };
+      }
+      if (openRtc > 0) {
+        return { kind: 'live', label: `P2P Live · ${deviceCount}`, deviceCount, openRtc };
+      }
+      if (wsConnected) {
+        return { kind: 'live', label: `Room ${activeRoomId} · ${deviceCount}`, deviceCount, openRtc: 0 };
+      }
+      return { kind: 'connecting', label: `Connecting…`, deviceCount, openRtc: 0 };
+    }
+
+    function notifyStatus() {
+      handlers.onStatusChange(getStatus());
+    }
+
+    // Wake / Visibility-Change Collision Guard & Online Reconnect Hardening
+    function handleWake() {
+      if (activeRoomId === 'LOCAL') return;
+      wakeSuppressUntil = Date.now() + 850;
+      if (!airplaneModeActive) {
+        if (!ws || ws.readyState !== 1) connectMqtt();
+        else sendHello(false);
+      } else {
+        for (const rec of peers.values()) {
+          if (rec.dc && rec.dc.readyState === 'open') {
+            sendRawToDc(rec.dc, {
+              type: 'HELLO',
+              roomId: activeRoomId,
+              sessionToken: activeToken,
+              senderId: MY_DEVICE_ID,
+              sentAt: Date.now()
+            });
+          }
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') handleWake();
+    });
+    window.addEventListener('online', handleWake);
+    window.addEventListener('focus', () => {
+      if (activeRoomId !== 'LOCAL' && !airplaneModeActive && (!ws || ws.readyState !== 1)) handleWake();
+    });
+
+    function init(h) {
+      handlers = Object.assign(handlers, h || {});
+    }
+
+    return {
+      init,
+      joinChannel,
+      disconnect,
+      sendPacket,
+      sendHello,
+      getStatus,
+      setHostingJoin: (v) => { isHostingJoin = !!v; },
+      requestJoinByCode,
+      createAirplaneOffer,
+      acceptAirplaneOffer,
+      completeAirplaneHost
+    };
+  })();
+
+  /* ============================================================================
+   * MODULE 6: UI CONTROLLER, FOCUS-AWARE SCORECARD, VIEWPORT CONTAINMENT & PWA
+   * ============================================================================ */
+  const $ = (id) => document.getElementById(id);
+
+  let state = null;
+  let userViewOverride = null; // null = auto focus-aware, 'focus' | 'all'
+  let localOverrideActive = false; // Stall-proof temporary override for a remote player's turn
+  let deferredInstallPrompt = null;
+  let toastTimer = null;
+  let qrScannerStream = null;
+  let qrScannerRaf = null;
+  let qrScannerCallback = null;
+  let editingPlayerIndex = -1;
+  let quickPickTarget = null;
+  let lastAirOfferCode = '';
+  let lastAirAnswerCode = '';
+
+  // Setup modal temporary selections
+  let setupDraft = { mode: '3d', count: 2, names: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6'] };
+
+  // ---- Viewport Containment (window.visualViewport / 100dvh) ----
+  function syncViewportVars() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    const w = vv ? vv.width : window.innerWidth;
+    document.documentElement.style.setProperty('--vvh', `${Math.round(h)}px`);
+    document.documentElement.style.setProperty('--vvw', `${Math.round(w)}px`);
+  }
+  syncViewportVars();
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewportVars);
+    window.visualViewport.addEventListener('scroll', syncViewportVars);
+  }
+  window.addEventListener('resize', syncViewportVars);
+
+  function clampPopoverToViewport(el, anchorRect) {
+    if (!el) return;
+    // Pre-measurement coordinate reset
+    el.style.left = '0px';
+    el.style.top = '0px';
+    el.style.maxHeight = '';
+    const vv = window.visualViewport || { width: window.innerWidth, height: window.innerHeight, offsetLeft: 0, offsetTop: 0 };
+    const pad = 12;
+    const rect = el.getBoundingClientRect();
+    let left = anchorRect ? anchorRect.left : (vv.width - rect.width) / 2;
+    let top = anchorRect ? anchorRect.bottom + 6 : (vv.height - rect.height) / 2;
+    // Directional flip upward if clipping bottom
+    if (anchorRect && top + rect.height > vv.height - pad) {
+      top = anchorRect.top - rect.height - 6;
+    }
+    left = Math.max(pad, Math.min(vv.width - rect.width - pad, left));
+    top = Math.max(pad, Math.min(vv.height - rect.height - pad, top));
+    el.style.left = `${Math.round(left)}px`;
+    el.style.top = `${Math.round(top)}px`;
+    el.style.maxHeight = `${Math.round(vv.height - pad * 2)}px`;
+  }
+
+  function showToast(msg, ms = 2400) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  function openModal(id) {
+    syncViewportVars();
+    $(id).classList.add('open');
+  }
+
+  function closeModal(id) {
+    $(id).classList.remove('open');
+    if (id === 'modalLink') {
+      stopQrScanner();
+      SyncEngine.setHostingJoin(false);
+    }
+  }
+
+  function closeAllModals() {
+    document.querySelectorAll('.modal-backdrop.open').forEach(m => closeModal(m.id));
+  }
+
+  // ---- Local Persistence & URL Hash Room Parsing ----
+  function saveStateLocal() {
+    if (!state) return;
+    try { localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(state)); } catch (_) {}
+  }
+
+  function loadStateLocal() {
+    try {
+      const raw = localStorage.getItem(STORAGE_STATE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.version === 1 && Array.isArray(parsed.players) && parsed.players.length >= 1) {
+        parsed.turnState = Object.assign(createFreshTurnState(), parsed.turnState || {});
+        parsed.turnState.animating = false;
+        return parsed;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function parseRoomHash() {
+    const h = (location.hash || '').replace(/^#/, '');
+    if (!h) return null;
+    const params = new URLSearchParams(h);
+    const r = (params.get('r') || params.get('room') || '').toUpperCase().trim();
+    const t = (params.get('t') || params.get('token') || '').trim();
+    if (r.length === 4 && t.length >= 8) return { roomId: r, sessionToken: t };
+    return null;
+  }
+
+  function buildShareUrl() {
+    const base = `${location.origin}${location.pathname}`;
+    return `${base}#r=${encodeURIComponent(state.roomId)}&t=${encodeURIComponent(state.sessionToken)}`;
+  }
+
+  // ---- Seat Ownership & Turn Authority ----
+  function getMyClaimedPlayerIndices() {
+    if (!state) return [];
+    const out = [];
+    state.players.forEach((p, idx) => {
+      if (p.claimedByDeviceId === MY_DEVICE_ID) out.push(idx);
+    });
+    return out;
+  }
+
+  function isActivePlayerControllableLocally() {
+    if (!state || state.gameStatus !== 'active') return false;
+    const active = state.players[state.activePlayerIndex];
+    if (!active) return false;
+    if (localOverrideActive) return true;
+    // Mixed-device rule: seats claimed by ME or unclaimed (null) are controllable locally
+    if (active.claimedByDeviceId === MY_DEVICE_ID) return true;
+    if (active.claimedByDeviceId === null) return true;
+    return false;
+  }
+
+  function shouldShowFocusView() {
+    if (userViewOverride === 'focus') return true;
+    if (userViewOverride === 'all') return false;
+    if (state.players.length === 1) return true;
+    // Focus-Aware automatic switching:
+    // Focus on active player when it's your turn locally; All-Players when watching a remote player
+    return isActivePlayerControllableLocally();
+  }
+
+  // ---- Deterministic State Merge ----
+  function mergeIncomingState(incoming) {
+    if (!incoming || incoming.version !== 1 || !Array.isArray(incoming.players)) return false;
+    if (!state || incoming.roomId !== state.roomId || incoming.sessionToken !== state.sessionToken) return false;
+
+    // Always merge newer player names per-field via nameUpdatedAt
+    if (state.players.length === incoming.players.length) {
+      for (let i = 0; i < state.players.length; i++) {
+        if ((incoming.players[i].nameUpdatedAt || 0) > (state.players[i].nameUpdatedAt || 0)) {
+          state.players[i].name = incoming.players[i].name;
+          state.players[i].nameUpdatedAt = incoming.players[i].nameUpdatedAt;
+        }
+      }
+    }
+
+    const newerTurn = (incoming.turnSeq > state.turnSeq) ||
+      (incoming.turnSeq === state.turnSeq && (incoming.updatedAt || 0) > (state.updatedAt || 0));
+
+    if (!newerTurn) {
+      saveStateLocal();
+      renderAll();
+      return false;
+    }
+
+    const prevRollId = state.turnState.lastRollPayload && state.turnState.lastRollPayload.rollId;
+    const nextRollPayload = incoming.turnState && incoming.turnState.lastRollPayload;
+    const prevHeld = (state.turnState.heldMask || []).slice();
+
+    // Preserve any newer local player names if our nameUpdatedAt was fresher
+    const mergedPlayers = deepClone(incoming.players);
+    if (state.players.length === mergedPlayers.length) {
+      for (let i = 0; i < mergedPlayers.length; i++) {
+        if ((state.players[i].nameUpdatedAt || 0) > (mergedPlayers[i].nameUpdatedAt || 0)) {
+          mergedPlayers[i].name = state.players[i].name;
+          mergedPlayers[i].nameUpdatedAt = state.players[i].nameUpdatedAt;
+        }
+      }
+    }
+
+    const activeChanged = state.activePlayerIndex !== incoming.activePlayerIndex;
+    state = deepClone(incoming);
+    state.players = mergedPlayers;
+    if (activeChanged) localOverrideActive = false;
+
+    saveStateLocal();
+
+    // Sync 3D dice visual state
+    if (nextRollPayload && nextRollPayload.rollId && nextRollPayload.rollId !== prevRollId && state.turnState.rollNumber > 0) {
+      state.turnState.animating = true;
+      DiceEngine.playRollPayload(nextRollPayload);
+    } else {
+      state.turnState.animating = false;
+      const heldChanged = (state.turnState.heldMask || []).some((h, i) => h !== prevHeld[i]);
+      DiceEngine.syncFromState(state.turnState, !heldChanged);
+    }
+
+    renderAll();
+    if (state.gameStatus === 'finished') openFinishModal();
+    return true;
+  }
+
+  function broadcastFullState() {
+    state.updatedAt = Date.now();
+    saveStateLocal();
+    SyncEngine.sendPacket({ type: 'STATE_SYNC', state });
+  }
+
+  // ---- Core Gameplay Actions ----
+  function triggerRoll() {
+    if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return;
+    if (!isActivePlayerControllableLocally()) {
+      showToast(`Waiting for ${state.players[state.activePlayerIndex].name}`);
+      return;
+    }
+    if (DiceEngine.isAnimating() || state.turnState.rollNumber >= 3) return;
+
+    // On Roll 1, always roll all 5 dice (reset holds)
+    if (state.turnState.rollNumber === 0) {
+      state.turnState.heldMask = [false, false, false, false, false];
+    }
+    if (state.turnState.heldMask.every(Boolean)) {
+      showToast('Release at least one die to roll again');
+      return;
+    }
+
+    const nextRollNum = state.turnState.rollNumber + 1;
+    state.turnSeq++;
+    const payload = DiceEngine.generateRollPayload(
+      state.turnSeq,
+      nextRollNum,
+      state.turnState.heldMask,
+      state.turnState.diceValues
+    );
+
+    state.turnState.rollNumber = nextRollNum;
+    state.turnState.diceValues = payload.finalValues.slice();
+    state.turnState.lastRollPayload = payload;
+    state.turnState.animating = true;
+    state.updatedAt = Date.now();
+    saveStateLocal();
+
+    SyncEngine.sendPacket({ type: 'ROLL_START', payload, activePlayerIndex: state.activePlayerIndex });
+    DiceEngine.playRollPayload(payload);
+    renderHUDAndControls();
+  }
+
+  function handleHoldMove(dieIdx, isHeld) {
+    if (!state || state.mode !== '3d' || state.gameStatus !== 'active') return;
+    if (state.turnState.rollNumber < 1 || state.turnState.rollNumber >= 3) return;
+
+    state.turnState.heldMask[dieIdx] = !!isHeld;
+    state.turnSeq++;
+    state.updatedAt = Date.now();
+    saveStateLocal();
+
+    SFX.playReserve(isHeld);
+    SyncEngine.sendPacket({
+      type: 'HOLD_MOVE',
+      turnSeq: state.turnSeq,
+      dieIdx,
+      held: !!isHeld,
+      heldMask: state.turnState.heldMask.slice()
+    });
+    renderHUDAndControls();
+  }
+
+  function releaseAllHeldDice() {
+    if (!state || !isActivePlayerControllableLocally() || DiceEngine.isAnimating()) return;
+    let any = false;
+    for (let i = 0; i < 5; i++) {
+      if (state.turnState.heldMask[i]) {
+        state.turnState.heldMask[i] = false;
+        DiceEngine.animateSlide(i, false);
+        any = true;
+      }
+    }
+    if (!any) return;
+    state.turnSeq++;
+    state.updatedAt = Date.now();
+    saveStateLocal();
+    SFX.playReserve(false);
+    SyncEngine.sendPacket({
+      type: 'HOLD_MOVE',
+      turnSeq: state.turnSeq,
+      dieIdx: -1,
+      held: false,
+      heldMask: state.turnState.heldMask.slice()
+    });
+    renderHUDAndControls();
+  }
+
+  function commitScore(playerIndex, catKey, scoreValue, { grantYachtiBonus = false } = {}) {
+    if (!state || state.gameStatus !== 'active') return;
+    const player = state.players[playerIndex];
+    if (!player || player.scores[catKey] !== null) return;
+
+    // Push bounded 10-step undo snapshot
+    state.undoStack.push({
+      turnSeq: state.turnSeq,
+      roundNumber: state.roundNumber,
+      activePlayerIndex: state.activePlayerIndex,
+      playersSnapshot: deepClone(state.players),
+      turnStateSnapshot: deepClone(state.turnState)
+    });
+    if (state.undoStack.length > MAX_UNDO) {
+      state.undoStack.splice(0, state.undoStack.length - MAX_UNDO);
+    }
+
+    player.scores[catKey] = scoreValue;
+    if (grantYachtiBonus) {
+      player.yachtiBonuses = (player.yachtiBonuses || 0) + 1;
+    }
+
+    if ((catKey === 'yachti' && scoreValue === 50) || grantYachtiBonus) {
+      SFX.playYachtiFanfare();
+    } else {
+      SFX.playScore(scoreValue);
+    }
+
+    // Advance turn / round or finish game
+    state.turnSeq++;
+    localOverrideActive = false;
+
+    if (isGameFinished(state.players)) {
+      state.gameStatus = 'finished';
+      state.turnState = createFreshTurnState();
+      broadcastFullState();
+      DiceEngine.syncFromState(state.turnState, true);
+      renderAll();
+      openFinishModal();
+      return;
+    }
+
+    state.activePlayerIndex = nextUnfinishedPlayerIndex(state.players, playerIndex);
+    state.roundNumber = computeNextRound(state.players);
+    state.turnState = createFreshTurnState();
+
+    broadcastFullState();
+    DiceEngine.syncFromState(state.turnState, true);
+    renderAll();
+  }
+
+  function addManualYachtiBonus(playerIndex) {
+    if (!state || state.mode !== 'scorecard' || state.gameStatus !== 'active') return;
+    const player = state.players[playerIndex];
+    if (!player || player.scores.yachti !== 50) {
+      showToast('Score 50 in Yachti first to unlock +100 Bonuses');
+      return;
+    }
+    state.undoStack.push({
+      turnSeq: state.turnSeq,
+      roundNumber: state.roundNumber,
+      activePlayerIndex: state.activePlayerIndex,
+      playersSnapshot: deepClone(state.players),
+      turnStateSnapshot: deepClone(state.turnState)
+    });
+    if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+
+    player.yachtiBonuses = (player.yachtiBonuses || 0) + 1;
+    state.turnSeq++;
+    SFX.playYachtiFanfare();
+    showToast(`+100 Yachti Bonus for ${player.name}!`);
+    broadcastFullState();
+    renderAll();
+  }
+
+  function triggerUndo() {
+    if (!state || !state.undoStack || state.undoStack.length === 0) return;
+    const snap = state.undoStack.pop();
+    state.players = deepClone(snap.playersSnapshot);
+    state.turnState = deepClone(snap.turnStateSnapshot);
+    state.turnState.animating = false;
+    state.roundNumber = snap.roundNumber;
+    state.activePlayerIndex = snap.activePlayerIndex;
+    state.gameStatus = 'active';
+    state.turnSeq++;
+    localOverrideActive = false;
+
+    SFX.playUndo();
+    closeModal('modalFinish');
+    broadcastFullState();
+    DiceEngine.syncFromState(state.turnState, true);
+    renderAll();
+    showToast('Last score undone');
+  }
+
+  function playAgainSamePlayers() {
+    if (!state) return;
+    const keptPlayers = state.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      nameUpdatedAt: p.nameUpdatedAt || Date.now(),
+      claimedByDeviceId: p.claimedByDeviceId,
+      scores: emptyScores(),
+      yachtiBonuses: 0
+    }));
+    state.gameStatus = 'active';
+    state.roundNumber = 1;
+    state.activePlayerIndex = 0;
+    state.players = keptPlayers;
+    state.turnState = createFreshTurnState();
+    state.undoStack = [];
+    state.turnSeq++;
+    localOverrideActive = false;
+
+    closeModal('modalFinish');
+    broadcastFullState();
+    DiceEngine.syncFromState(state.turnState, true);
+    renderAll();
+    showToast('New game started — room stays linked!');
+  }
+
+  // ---- Incoming Sync Packet Handler ----
+  function handleRemotePacket(pkt) {
+    if (!state) return;
+    if (pkt.type === 'STATE_SYNC' && pkt.state) {
+      mergeIncomingState(pkt.state);
+    } else if (pkt.type === 'ROLL_START' && pkt.payload) {
+      if (pkt.payload.turnSeq <= state.turnSeq) return;
+      state.turnSeq = pkt.payload.turnSeq;
+      if (typeof pkt.activePlayerIndex === 'number') state.activePlayerIndex = pkt.activePlayerIndex;
+      state.turnState.rollNumber = pkt.payload.rollNumber;
+      state.turnState.heldMask = pkt.payload.heldMask.slice();
+      state.turnState.diceValues = pkt.payload.finalValues.slice();
+      state.turnState.lastRollPayload = pkt.payload;
+      state.turnState.animating = true;
+      state.updatedAt = Date.now();
+      saveStateLocal();
+      DiceEngine.playRollPayload(pkt.payload);
+      renderAll();
+    } else if (pkt.type === 'HOLD_MOVE' && Array.isArray(pkt.heldMask)) {
+      if (pkt.turnSeq <= state.turnSeq) return;
+      state.turnSeq = pkt.turnSeq;
+      const prev = state.turnState.heldMask.slice();
+      state.turnState.heldMask = pkt.heldMask.slice();
+      state.updatedAt = Date.now();
+      saveStateLocal();
+      for (let i = 0; i < 5; i++) {
+        if (prev[i] !== state.turnState.heldMask[i]) {
+          DiceEngine.animateSlide(i, state.turnState.heldMask[i]);
+        }
+      }
+      SFX.playReserve(!!pkt.held);
+      renderHUDAndControls();
+    } else if (pkt.type === 'SEAT_CLAIM') {
+      const p = state.players.find(pl => pl.id === pkt.playerId);
+      if (p) {
+        p.claimedByDeviceId = pkt.deviceId;
+        state.turnSeq = Math.max(state.turnSeq + 1, pkt.turnSeq || 0);
+        saveStateLocal();
+        renderAll();
+      }
+    } else if (pkt.type === 'NAME_UPDATE') {
+      const p = state.players.find(pl => pl.id === pkt.playerId);
+      if (p && (pkt.nameUpdatedAt || 0) >= (p.nameUpdatedAt || 0)) {
+        p.name = pkt.name;
+        p.nameUpdatedAt = pkt.nameUpdatedAt;
+        saveStateLocal();
+        renderAll();
+      }
+    }
+  }
+
+  // ---- Rendering: HUD, Controls & Focus-Aware Scorecard ----
+  function renderHUDAndControls() {
+    if (!state) return;
+    const active = state.players[state.activePlayerIndex] || state.players[0];
+    const canAct = isActivePlayerControllableLocally();
+    const isScorecardOnly = state.mode === 'scorecard';
+
+    $('workspace').classList.toggle('scorecard-only', isScorecardOnly);
+    $('btnUndo').disabled = !state.undoStack || state.undoStack.length === 0;
+
+    // View toggle pill
+    const focus = shouldShowFocusView();
+    const viewBtn = $('btnViewToggle');
+    if (state.players.length <= 1) {
+      viewBtn.classList.add('hidden');
+    } else {
+      viewBtn.classList.remove('hidden');
+      viewBtn.textContent = focus ? 'All' : 'My Card';
+      viewBtn.classList.toggle('active', !focus);
+    }
+
+    // Mute icon
+    $('btnMute').textContent = Prefs.muted ? '🔇' : (Prefs.sound ? '🔊' : '📳');
+    $('menuAudioSub').textContent = Prefs.sound ? 'On (synthesized dice & chimes)' : 'Off';
+    $('menuAudioBadge').textContent = Prefs.sound ? 'ON' : 'OFF';
+    $('menuHapticsSub').textContent = Prefs.haptics ? 'On (subtle mobile vibration)' : 'Off';
+    $('menuHapticsBadge').textContent = Prefs.haptics ? 'ON' : 'OFF';
+
+    // Mode menu text
+    $('menuModeTitle').textContent = isScorecardOnly ? 'Switch to 3D Yachti' : 'Switch to Digital Scorecard';
+    $('menuModeSub').textContent = isScorecardOnly
+      ? 'Play with top-down 3D dice & Reserve Bar'
+      : 'Use real physical dice with live synced scores';
+
+    // Turn strip
+    const badge = $('turnBadge');
+    if (state.gameStatus === 'finished') {
+      badge.textContent = 'Finished';
+      badge.className = 'turn-badge';
+    } else if (canAct) {
+      badge.textContent = localOverrideActive ? 'Override' : 'Your Turn';
+      badge.className = 'turn-badge';
+    } else {
+      badge.textContent = 'Watching';
+      badge.className = 'turn-badge watching';
+    }
+    $('turnPlayerName').textContent = active ? active.name : '';
+    $('roundLabel').textContent = `Round ${state.roundNumber}/13`;
+
+    // Stall-proof override button when watching a remote player's turn
+    const ovBtn = $('btnOverride');
+    if (state.gameStatus === 'active' && !canAct) {
+      ovBtn.classList.remove('hidden');
+      ovBtn.textContent = `Roll / Score for ${active.name}`;
+    } else {
+      ovBtn.classList.add('hidden');
+    }
+
+    // Roll controls & tray hint
+    const rNum = state.turnState.rollNumber;
+    const anim = state.turnState.animating || DiceEngine.isAnimating();
+    const heldCount = (state.turnState.heldMask || []).filter(Boolean).length;
+    const btnRoll = $('btnRoll');
+    const rollLbl = $('rollBtnLabel');
+    const relBtn = $('btnReleaseAll');
+    const hint = $('trayHint');
+
+    const pips = $('rollPips').querySelectorAll('.roll-pip');
+    pips.forEach((p, idx) => p.classList.toggle('used', idx < rNum));
+
+    if (state.gameStatus === 'finished') {
+      btnRoll.disabled = true;
+      rollLbl.textContent = 'Game Complete — View Rankings';
+      hint.classList.add('hidden');
+      relBtn.classList.add('hidden');
+    } else if (!canAct) {
+      btnRoll.disabled = true;
+      rollLbl.textContent = anim ? `${active.name} rolling…` : `Waiting for ${active.name}…`;
+      hint.classList.add('hidden');
+      relBtn.classList.add('hidden');
+    } else if (anim) {
+      btnRoll.disabled = true;
+      rollLbl.textContent = 'Rolling…';
+      hint.classList.add('hidden');
+      relBtn.classList.add('hidden');
+    } else if (rNum === 0) {
+      btnRoll.disabled = false;
+      rollLbl.textContent = 'Roll Dice (1 of 3)';
+      hint.textContent = 'Tap Roll to start your turn';
+      hint.classList.remove('hidden');
+      relBtn.classList.add('hidden');
+    } else if (rNum < 3) {
+      const allHeld = heldCount === 5;
+      btnRoll.disabled = allHeld;
+      rollLbl.textContent = allHeld ? 'Pick a Score Below' : `Roll Remaining (${rNum + 1} of 3)`;
+      hint.textContent = heldCount === 0 ? 'Drag or tap dice to Reserve →' : `${heldCount} reserved · tap a score anytime`;
+      hint.classList.remove('hidden');
+      relBtn.classList.toggle('hidden', heldCount === 0);
+    } else {
+      btnRoll.disabled = true;
+      rollLbl.textContent = 'Final Roll — Tap a Category to Score';
+      hint.textContent = 'Tap any highlighted box below to score';
+      hint.classList.remove('hidden');
+      relBtn.classList.add('hidden');
+    }
+
+    // Joker strip
+    const jokerStrip = $('jokerStrip');
+    if (!isScorecardOnly && state.gameStatus === 'active' && rNum > 0 && !anim && active) {
+      const evalRes = evaluateTurnOptions(active, state.turnState.diceValues);
+      if (evalRes.jokerActive && evalRes.jokerMessage) {
+        jokerStrip.textContent = evalRes.jokerMessage;
+        jokerStrip.classList.add('visible');
+      } else {
+        jokerStrip.classList.remove('visible');
+      }
+    } else {
+      jokerStrip.classList.remove('visible');
+    }
+  }
+
+  function renderScorecard() {
+    if (!state) return;
+    const table = $('scoreTable');
+    const focus = shouldShowFocusView();
+    const activeIdx = state.activePlayerIndex;
+    const canAct = isActivePlayerControllableLocally();
+    const isScorecardMode = state.mode === 'scorecard';
+    const rNum = state.turnState.rollNumber;
+    const anim = state.turnState.animating || DiceEngine.isAnimating();
+
+    table.className = 'score-table ' + (focus ? 'focus-mode' : 'all-mode');
+
+    const visiblePlayers = focus
+      ? [{ player: state.players[activeIdx], idx: activeIdx }]
+      : state.players.map((player, idx) => ({ player, idx }));
+
+    // Compute totals & live leader
+    const totalsByIdx = state.players.map(computePlayerTotals);
+    let maxScore = -1;
+    totalsByIdx.forEach(t => { if (t.grandTotal > maxScore) maxScore = t.grandTotal; });
+
+    // Evaluate assisted previews for active player when rolled & settled in 3D mode
+    let activeEval = null;
+    if (!isScorecardMode && state.gameStatus === 'active' && rNum > 0 && !anim && canAct) {
+      activeEval = evaluateTurnOptions(state.players[activeIdx], state.turnState.diceValues);
+    }
+
+    let html = '<thead><tr><th class="cat-col">Category</th>';
+    for (const { player, idx } of visiblePlayers) {
+      const t = totalsByIdx[idx];
+      const isAct = idx === activeIdx && state.gameStatus === 'active';
+      const isLeader = state.players.length > 1 && maxScore > 0 && t.grandTotal === maxScore;
+      const isMe = player.claimedByDeviceId === MY_DEVICE_ID;
+      html += `<th class="player-col ${isAct ? 'is-active' : ''} ${isLeader ? 'is-leader' : ''}">
+        <button class="player-th-btn" data-edit-player="${idx}" title="Tap to rename ${escapeHtml(player.name)}">
+          <span class="player-th-name">${isLeader ? '👑 ' : ''}${escapeHtml(player.name)}${isMe ? ' •' : ''}</span>
+          <span class="player-th-sub">${t.grandTotal} pts</span>
+        </button>
+      </th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    // UPPER SECTION
+    html += `<tr class="section-row"><td colspan="${visiblePlayers.length + 1}">Upper Section · +35 Bonus at 63</td></tr>`;
+    for (const cat of UPPER_CATS) {
+      html += `<tr><td class="cat-col"><div class="cat-label"><span class="cat-name">${cat.label}</span><span class="cat-hint">${cat.hint}</span></div></td>`;
+      for (const { player, idx } of visiblePlayers) {
+        html += renderScoreCell(player, idx, cat.key, activeIdx, activeEval, isScorecardMode, canAct);
+      }
+      html += '</tr>';
+    }
+
+    // Upper Subtotal + Par Pace
+    html += `<tr class="summary-row"><td class="cat-col">Upper Subtotal</td>`;
+    for (const { idx } of visiblePlayers) {
+      const t = totalsByIdx[idx];
+      let parHtml = '';
+      if (t.upperFilled > 0 && t.upperBonus === 0) {
+        const sign = t.parDelta >= 0 ? '+' : '';
+        parHtml = `<span class="par-pill ${t.parDelta >= 0 ? 'good' : 'behind'}">${sign}${t.parDelta} par</span>`;
+      }
+      html += `<td class="player-col ${idx === activeIdx ? 'is-active' : ''}"><div class="summary-val">${t.upperSub}/63${focus ? parHtml : ''}</div></td>`;
+    }
+    html += '</tr>';
+
+    // Upper Bonus
+    html += `<tr class="summary-row"><td class="cat-col">Upper Bonus (+35)</td>`;
+    for (const { idx } of visiblePlayers) {
+      const t = totalsByIdx[idx];
+      const txt = t.upperBonus > 0 ? '<span style="color:var(--green-ok)">+35 ✓</span>' : `<span style="color:var(--text-dim)">-${t.remainingForBonus}</span>`;
+      html += `<td class="player-col ${idx === activeIdx ? 'is-active' : ''}"><div class="summary-val">${txt}</div></td>`;
+    }
+    html += '</tr>';
+
+    // LOWER SECTION
+    html += `<tr class="section-row"><td colspan="${visiblePlayers.length + 1}">Lower Section</td></tr>`;
+    for (const cat of LOWER_CATS) {
+      html += `<tr><td class="cat-col"><div class="cat-label"><span class="cat-name">${cat.label}</span><span class="cat-hint">${cat.hint}</span></div></td>`;
+      for (const { player, idx } of visiblePlayers) {
+        html += renderScoreCell(player, idx, cat.key, activeIdx, activeEval, isScorecardMode, canAct);
+      }
+      html += '</tr>';
+    }
+
+    // Yachti Bonus (+100 each)
+    html += `<tr class="summary-row"><td class="cat-col">Yachti Bonus (+100)</td>`;
+    for (const { player, idx } of visiblePlayers) {
+      const t = totalsByIdx[idx];
+      const canManualBonus = isScorecardMode && state.gameStatus === 'active' && player.scores.yachti === 50 && (idx === activeIdx || canAct);
+      html += `<td class="player-col ${idx === activeIdx ? 'is-active' : ''}"><div class="summary-val">
+        ${t.bonusPts > 0 ? `<span style="color:var(--gold)">+${t.bonusPts}</span>` : '<span style="color:var(--text-dim)">0</span>'}
+        ${canManualBonus ? ` <button class="yb-btn" data-add-yb="${idx}">+100</button>` : ''}
+      </div></td>`;
+    }
+    html += '</tr>';
+
+    // Grand Total
+    html += `<tr class="summary-row grand-row"><td class="cat-col">Grand Total</td>`;
+    for (const { idx } of visiblePlayers) {
+      const t = totalsByIdx[idx];
+      html += `<td class="player-col ${idx === activeIdx ? 'is-active' : ''}"><div class="summary-val">${t.grandTotal}</div></td>`;
+    }
+    html += '</tr></tbody>';
+
+    table.innerHTML = html;
+  }
+
+  function renderScoreCell(player, pIdx, catKey, activeIdx, activeEval, isScorecardMode, canAct) {
+    const val = player.scores[catKey];
+    const isAct = pIdx === activeIdx;
+    const tdClass = `player-col ${isAct ? 'is-active' : ''}`;
+
+    if (val !== null && val !== undefined) {
+      return `<td class="${tdClass}"><button class="cell-btn filled ${val === 0 ? 'zero' : ''}" disabled>${val}</button></td>`;
+    }
+
+    if (state.gameStatus !== 'active') {
+      return `<td class="${tdClass}"><button class="cell-btn empty-idle" disabled>—</button></td>`;
+    }
+
+    // Digital Scorecard Mode: tapping active player's open cell opens validated quick picker
+    if (isScorecardMode) {
+      if (isAct && canAct) {
+        return `<td class="${tdClass}"><button class="cell-btn manual-open" data-quick-pick="${pIdx}:${catKey}">Enter</button></td>`;
+      }
+      return `<td class="${tdClass}"><button class="cell-btn empty-idle" disabled>—</button></td>`;
+    }
+
+    // Interactive 3D Mode: Instant Single-Tap Assisted Scoring Previews
+    if (isAct && activeEval && activeEval.options[catKey]) {
+      const opt = activeEval.options[catKey];
+      if (!opt.legal) {
+        return `<td class="${tdClass}"><button class="cell-btn joker-locked" disabled title="Blocked by Joker Rule">✕</button></td>`;
+      }
+      const cls = opt.isJoker ? 'preview-joker' : (opt.score > 0 ? 'preview-pos' : 'preview-zero');
+      const bonusTag = opt.grantsBonus ? ' +100' : '';
+      const label = opt.score > 0 ? `${opt.score}${bonusTag}` : `0${bonusTag}`;
+      return `<td class="${tdClass}"><button class="cell-btn ${cls}" data-commit="${pIdx}:${catKey}:${opt.score}:${opt.grantsBonus ? 1 : 0}">${label}</button></td>`;
+    }
+
+    return `<td class="${tdClass}"><button class="cell-btn empty-idle" disabled>—</button></td>`;
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  function renderAll() {
+    renderHUDAndControls();
+    renderScorecard();
+    updateSyncModalUI();
+  }
+
+  // ---- Digital Scorecard Validated Quick Picker ----
+  function openQuickPicker(pIdx, catKey) {
+    const player = state.players[pIdx];
+    const cat = ALL_CATS.find(c => c.key === catKey);
+    if (!player || !cat) return;
+    quickPickTarget = { pIdx, catKey };
+
+    $('quickPickTitle').textContent = `${cat.label} · ${player.name}`;
+    const grid = $('quickPickGrid');
+    grid.innerHTML = '';
+
+    const upper = UPPER_CATS.find(c => c.key === catKey);
+    if (upper) {
+      $('quickPickSub').textContent = `Tap how many ${upper.label} you rolled (0–5 dice):`;
+      grid.className = 'picker-grid';
+      for (let count = 0; count <= 5; count++) {
+        const pts = count * upper.face;
+        const btn = document.createElement('button');
+        btn.className = `picker-opt ${pts === 0 ? 'zero-opt' : 'good-opt'}`;
+        btn.textContent = pts === 0 ? '0 (Scrub)' : `${pts}`;
+        btn.onclick = () => { closeModal('modalQuickPick'); commitScore(pIdx, catKey, pts); };
+        grid.appendChild(btn);
+      }
+    } else if (cat.type === 'fixed') {
+      $('quickPickSub').textContent = `Tap ${cat.fixedVal} if achieved, or 0 to scrub:`;
+      grid.className = 'picker-grid';
+      grid.style.gridTemplateColumns = '1fr 1fr';
+      const b0 = document.createElement('button');
+      b0.className = 'picker-opt zero-opt';
+      b0.textContent = '0 (Scrub)';
+      b0.onclick = () => { closeModal('modalQuickPick'); commitScore(pIdx, catKey, 0); };
+      const b1 = document.createElement('button');
+      b1.className = 'picker-opt good-opt';
+      b1.textContent = `${cat.fixedVal} pts`;
+      b1.onclick = () => { closeModal('modalQuickPick'); commitScore(pIdx, catKey, cat.fixedVal); };
+      grid.append(b0, b1);
+    } else {
+      // Validated 5-dice sum picker: 0 (scrub) or legal range 5..30
+      $('quickPickSub').textContent = 'Tap total sum of all 5 dice (5–30), or 0 to scrub:';
+      grid.style.gridTemplateColumns = '';
+      grid.className = 'picker-grid dense';
+      const vals = [0];
+      for (let v = 5; v <= 30; v++) vals.push(v);
+      for (const v of vals) {
+        const btn = document.createElement('button');
+        btn.className = `picker-opt ${v === 0 ? 'zero-opt' : ''}`;
+        btn.textContent = `${v}`;
+        btn.onclick = () => { closeModal('modalQuickPick'); commitScore(pIdx, catKey, v); };
+        grid.appendChild(btn);
+      }
+    }
+    openModal('modalQuickPick');
+  }
+
+  // ---- 1-Step New Game Setup Modal ----
+  function openSetupModal() {
+    if (state) {
+      setupDraft.mode = state.mode;
+      setupDraft.count = state.players.length;
+      state.players.forEach((p, i) => { setupDraft.names[i] = p.name; });
+    }
+    renderSetupModal();
+    openModal('modalSetup');
+  }
+
+  function renderSetupModal() {
+    $('setupMode3d').classList.toggle('active', setupDraft.mode === '3d');
+    $('setupModeCard').classList.toggle('active', setupDraft.mode === 'scorecard');
+
+    const pills = $('setupCountPills');
+    pills.innerHTML = '';
+    for (let n = 1; n <= MAX_PLAYERS; n++) {
+      const b = document.createElement('button');
+      b.className = `count-pill ${setupDraft.count === n ? 'active' : ''}`;
+      b.textContent = String(n);
+      b.onclick = () => { setupDraft.count = n; renderSetupModal(); };
+      pills.appendChild(b);
+    }
+
+    const grid = $('setupNameInputs');
+    grid.innerHTML = '';
+    for (let i = 0; i < setupDraft.count; i++) {
+      const inp = document.createElement('input');
+      inp.className = 'text-input';
+      inp.maxLength = 18;
+      inp.value = setupDraft.names[i] || `Player ${i + 1}`;
+      inp.placeholder = `Player ${i + 1}`;
+      inp.oninput = (e) => { setupDraft.names[i] = e.target.value; };
+      grid.appendChild(inp);
+    }
+  }
+
+  function applySetupNewGame() {
+    const names = [];
+    for (let i = 0; i < setupDraft.count; i++) {
+      const nm = (setupDraft.names[i] || '').trim();
+      names.push(nm || `Player ${i + 1}`);
+    }
+    const keepRoom = state && state.roomId !== 'LOCAL';
+    const nextRoomId = keepRoom ? state.roomId : 'LOCAL';
+    const nextToken = keepRoom ? state.sessionToken : null;
+    const prevSeq = state ? state.turnSeq : 0;
+
+    state = createCanonicalState({ playerNames: names, mode: setupDraft.mode, roomId: nextRoomId, sessionToken: nextToken });
+    state.turnSeq = prevSeq + 1;
+    userViewOverride = null;
+    localOverrideActive = false;
+
+    closeAllModals();
+    broadcastFullState();
+    DiceEngine.computeLayout();
+    DiceEngine.syncFromState(state.turnState, true);
+    renderAll();
+    showToast(`Started ${setupDraft.mode === '3d' ? '3D Yachti' : 'Digital Scorecard'} (${names.length}P)`);
+  }
+
+  // ---- 1-Tap "Who Are You?" Seat Picker ----
+  function openSeatPicker() {
+    if (!state) return;
+    const list = $('seatOptionsList');
+    list.innerHTML = '';
+
+    state.players.forEach((p, idx) => {
+      const isMe = p.claimedByDeviceId === MY_DEVICE_ID;
+      const claimedOther = p.claimedByDeviceId && !isMe;
+      const btn = document.createElement('button');
+      btn.className = 'menu-item';
+      btn.innerHTML = `<div class="menu-item-left">
+        <span>${isMe ? '✅' : (claimedOther ? '📱' : '🪑')}</span>
+        <div>
+          <div class="menu-item-title">Play as ${escapeHtml(p.name)}</div>
+          <div class="menu-item-sub">${isMe ? 'Your current seat' : (claimedOther ? 'Linked on another device (tap to take over)' : 'Unclaimed seat')}</div>
+        </div>
+      </div><span>›</span>`;
+      btn.onclick = () => claimSeat(idx);
+      list.appendChild(btn);
+    });
+
+    if (state.players.length < MAX_PLAYERS) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'menu-item';
+      addBtn.innerHTML = `<div class="menu-item-left">
+        <span>➕</span>
+        <div>
+          <div class="menu-item-title">+ Join as New Player</div>
+          <div class="menu-item-sub">Adds Player ${state.players.length + 1} to the room (max 6)</div>
+        </div>
+      </div><span>›</span>`;
+      addBtn.onclick = () => {
+        const idx = state.players.length;
+        state.players.push(createPlayer(idx, `Player ${idx + 1}`, MY_DEVICE_ID));
+        state.turnSeq++;
+        broadcastFullState();
+        closeModal('modalSeat');
+        renderAll();
+        showToast(`Joined as ${state.players[idx].name}`);
+      };
+      list.appendChild(addBtn);
+    }
+
+    const specBtn = document.createElement('button');
+    specBtn.className = 'menu-item';
+    specBtn.innerHTML = `<div class="menu-item-left">
+      <span>👀</span>
+      <div>
+        <div class="menu-item-title">Watch as Spectator</div>
+        <div class="menu-item-sub">Release any seat claimed by this device</div>
+      </div>
+    </div><span>›</span>`;
+    specBtn.onclick = () => {
+      state.players.forEach(p => {
+        if (p.claimedByDeviceId === MY_DEVICE_ID) p.claimedByDeviceId = null;
+      });
+      state.turnSeq++;
+      broadcastFullState();
+      closeModal('modalSeat');
+      renderAll();
+      showToast('Watching live scorecard');
+    };
+    list.appendChild(specBtn);
+
+    openModal('modalSeat');
+  }
+
+  function claimSeat(idx) {
+    state.players.forEach((p, i) => {
+      if (i !== idx && p.claimedByDeviceId === MY_DEVICE_ID) p.claimedByDeviceId = null;
+    });
+    state.players[idx].claimedByDeviceId = MY_DEVICE_ID;
+    state.turnSeq++;
+    broadcastFullState();
+    closeModal('modalSeat');
+    renderAll();
+    showToast(`Playing as ${state.players[idx].name}`);
+  }
+
+  // ---- Link / Invite & ✈️ Airplane Sync Modal ----
+  function openLinkModal(tab = 'online') {
+    stopQrScanner();
+    switchLinkTab(tab);
+    updateSyncModalUI();
+    if (state.roomId !== 'LOCAL') SyncEngine.setHostingJoin(true);
+    openModal('modalLink');
+  }
+
+  function switchLinkTab(tab) {
+    const isAir = tab === 'airplane';
+    $('tabOnlineSync').classList.toggle('active', !isAir);
+    $('tabAirplaneSync').classList.toggle('active', isAir);
+    $('panelOnlineSync').classList.toggle('hidden', isAir);
+    $('panelAirplaneSync').classList.toggle('hidden', !isAir);
+  }
+
+  function updateSyncModalUI() {
+    if (!state) return;
+    const st = SyncEngine.getStatus();
+    const pill = $('btnSyncPill');
+    pill.className = 'sync-pill ' + (st.kind === 'local' ? '' : st.kind);
+    $('syncPillText').textContent = st.label;
+
+    const hosted = state.roomId !== 'LOCAL';
+    $('onlineNotHosted').classList.toggle('hidden', hosted);
+    $('onlineHosted').classList.toggle('hidden', !hosted);
+
+    if (hosted) {
+      $('displayRoomCode').textContent = state.roomId;
+      $('displayPeerSummary').textContent = st.deviceCount > 1
+        ? `${st.deviceCount} devices linked live (${st.openRtc > 0 ? 'Direct P2P' : 'Relay'})`
+        : 'Room live — scan QR or share link to invite players';
+      try {
+        QRCodeGen.renderToCanvas($('roomQrCanvas'), buildShareUrl());
+      } catch (_) {}
+    }
+
+    // Update menu seat subtitle
+    const mine = getMyClaimedPlayerIndices();
+    $('menuSeatSub').textContent = mine.length
+      ? `Playing as ${state.players[mine[0]].name}`
+      : 'Unassigned (host controls unclaimed seats)';
+  }
+
+  function createLiveRoom() {
+    state.roomId = generateRoomCode();
+    state.sessionToken = randomHex(16);
+    state.turnSeq++;
+    saveStateLocal();
+    SyncEngine.setHostingJoin(true);
+    SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false });
+    history.replaceState(null, '', `#r=${state.roomId}&t=${state.sessionToken}`);
+    updateSyncModalUI();
+    showToast(`Room ${state.roomId} ready!`);
+  }
+
+  function handleJoinRoomInput(rawInput) {
+    const val = (rawInput || '').trim();
+    if (!val) return;
+
+    // Case 1: Full URL or hash containing room + token
+    const mRoom = val.match(/[?#&](?:r|room)=([A-Za-z0-9]{4})/i);
+    const mTok = val.match(/[?#&](?:t|token)=([A-Za-z0-9_-]{8,})/i);
+    if (mRoom && mTok) {
+      connectToOnlineRoom(mRoom[1].toUpperCase(), mTok[1], true);
+      return;
+    }
+
+    // Case 2: Airplane Sync token pasted directly
+    if (val.startsWith('YAIR:')) {
+      switchLinkTab('airplane');
+      handleGuestApplyOffer(val);
+      return;
+    }
+
+    // Case 3: 4-character Room Code
+    const code = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length === 4) {
+      showToast(`Looking for Room ${code}… (keep Host's Link screen open)`, 3200);
+      SyncEngine.requestJoinByCode(code);
+      return;
+    }
+    showToast('Enter a 4-char Room Code or paste a Yachti share link');
+  }
+
+  function connectToOnlineRoom(roomId, sessionToken, promptSeat = true) {
+    state.roomId = roomId;
+    state.sessionToken = sessionToken;
+    state.turnSeq = 0; // Allow incoming room state to take authority immediately
+    saveStateLocal();
+    history.replaceState(null, '', `#r=${roomId}&t=${sessionToken}`);
+    SyncEngine.joinChannel(roomId, sessionToken, { isAirplane: false });
+    closeModal('modalLink');
+    updateSyncModalUI();
+    showToast(`Joined Room ${roomId}!`);
+    if (promptSeat) {
+      setTimeout(() => openSeatPicker(), 900);
+    }
+  }
+
+  // ---- ✈️ Airplane Sync Flows ----
+  async function startAirplaneHost() {
+    $('airGuestBox').classList.add('hidden');
+    $('airHostBox').classList.remove('hidden');
+    $('airStatusText').textContent = 'Gathering local Bluetooth PAN / Hotspot address…';
+
+    if (state.roomId === 'LOCAL') {
+      state.roomId = generateRoomCode();
+      state.sessionToken = randomHex(16);
+      saveStateLocal();
+    }
+    try {
+      const code = await SyncEngine.createAirplaneOffer(state.roomId, state.sessionToken);
+      lastAirOfferCode = code;
+      QRCodeGen.renderToCanvas($('airOfferQr'), code);
+      $('airStatusText').textContent = 'Offer QR ready! Have Guest scan it, then tap Step 2 to scan their Answer.';
+    } catch (err) {
+      $('airStatusText').textContent = 'Could not create Airplane Offer: ' + err.message;
+    }
+  }
+
+  function startAirplaneGuest() {
+    $('airHostBox').classList.add('hidden');
+    $('airGuestBox').classList.remove('hidden');
+    $('airGuestStep1').classList.remove('hidden');
+    $('airGuestStep2').classList.add('hidden');
+    $('airStatusText').textContent = 'Scan the Host Offer QR (or paste the Offer code below).';
+  }
+
+  async function handleGuestApplyOffer(codeStr) {
+    const clean = (codeStr || '').trim();
+    if (!clean.startsWith('YAIR:')) {
+      showToast('Invalid Offer code (must start with YAIR:)');
+      return;
+    }
+    $('airStatusText').textContent = 'Building local Answer QR…';
+    try {
+      const res = await SyncEngine.acceptAirplaneOffer(clean);
+      state.roomId = res.roomId;
+      state.sessionToken = res.sessionToken;
+      state.turnSeq = 0;
+      saveStateLocal();
+      lastAirAnswerCode = res.answerCode;
+      QRCodeGen.renderToCanvas($('airAnswerQr'), res.answerCode);
+      $('airGuestStep1').classList.add('hidden');
+      $('airGuestStep2').classList.remove('hidden');
+      $('airStatusText').textContent = 'Answer QR ready! Let Host scan this to complete the link.';
+    } catch (err) {
+      $('airStatusText').textContent = 'Offer error: ' + err.message;
+      showToast('Could not parse Offer code');
+    }
+  }
+
+  async function handleHostApplyAnswer(codeStr) {
+    const clean = (codeStr || '').trim();
+    if (!clean.startsWith('YAIR:')) {
+      showToast('Invalid Answer code (must start with YAIR:)');
+      return;
+    }
+    $('airStatusText').textContent = 'Connecting direct P2P channel…';
+    try {
+      await SyncEngine.completeAirplaneHost(clean);
+      $('airStatusText').textContent = '✈️ Linked! Waiting for DataChannel lock…';
+      showToast('✈️ Airplane P2P handshake sent!');
+    } catch (err) {
+      $('airStatusText').textContent = 'Answer error: ' + err.message;
+      showToast('Could not apply Answer code');
+    }
+  }
+
+  // ---- Built-in Camera QR Scanner (BarcodeDetector + Graceful Fallback) ----
+  async function startQrScanner(onDecoded) {
+    stopQrScanner();
+    qrScannerCallback = onDecoded;
+    const panel = $('qrScannerPanel');
+    const msg = $('qrScannerMsg');
+    panel.classList.remove('hidden');
+    msg.textContent = 'Starting camera…';
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      msg.textContent = 'Camera unavailable here — please use Copy/Paste code instead.';
+      return;
+    }
+
+    try {
+      // Camera permission also unlocks real local IP ICE candidates for Airplane Sync
+      qrScannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+      const video = $('qrVideo');
+      video.srcObject = qrScannerStream;
+      await video.play();
+
+      if (typeof window.BarcodeDetector === 'undefined') {
+        msg.textContent = 'This browser lacks live QR detection — copy/paste the code or scan with your native Camera app.';
+        return;
+      }
+
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      msg.textContent = 'Point camera steadily at the QR code…';
+
+      const scanLoop = async () => {
+        if (!qrScannerStream) return;
+        try {
+          const codes = await detector.detect(video);
+          if (codes && codes.length > 0 && codes[0].rawValue) {
+            const val = codes[0].rawValue;
+            const cb = qrScannerCallback;
+            stopQrScanner();
+            SFX.playReserve(true);
+            if (cb) cb(val);
+            return;
+          }
+        } catch (_) {}
+        qrScannerRaf = requestAnimationFrame(scanLoop);
+      };
+      qrScannerRaf = requestAnimationFrame(scanLoop);
+    } catch (err) {
+      msg.textContent = 'Camera permission denied — use Copy/Paste code instead.';
+    }
+  }
+
+  function stopQrScanner() {
+    if (qrScannerRaf) { cancelAnimationFrame(qrScannerRaf); qrScannerRaf = null; }
+    if (qrScannerStream) {
+      qrScannerStream.getTracks().forEach(t => t.stop());
+      qrScannerStream = null;
+    }
+    const video = $('qrVideo');
+    if (video) video.srcObject = null;
+    $('qrScannerPanel').classList.add('hidden');
+    qrScannerCallback = null;
+  }
+
+  // ---- Final Rankings Podium ----
+  function openFinishModal() {
+    if (!state) return;
+    const ranked = state.players.map((p, idx) => ({
+      player: p,
+      idx,
+      totals: computePlayerTotals(p)
+    })).sort((a, b) => b.totals.grandTotal - a.totals.grandTotal);
+
+    const list = $('podiumList');
+    list.innerHTML = '';
+    const medals = ['🥇', '🥈', '🥉', '4', '5', '6'];
+
+    ranked.forEach((item, rank) => {
+      const row = document.createElement('div');
+      row.className = `podium-row ${rank === 0 ? 'rank-1' : ''}`;
+      let badges = '';
+      if (item.totals.upperBonus > 0) badges += '<span class="mini-badge">Upper +35</span>';
+      if (item.player.yachtiBonuses > 0) badges += `<span class="mini-badge gold">Yachti Bonus +${item.player.yachtiBonuses * 100}</span>`;
+      if (item.player.scores.yachti === 50) badges += '<span class="mini-badge gold">Yachti 50</span>';
+
+      row.innerHTML = `<div class="podium-left">
+        <span class="podium-medal">${medals[rank] || (rank + 1)}</span>
+        <div>
+          <div style="font-weight:800; font-size:15px;">${escapeHtml(item.player.name)}</div>
+          <div class="podium-badges">${badges || '<span class="muted-note">13/13 rounds complete</span>'}</div>
+        </div>
+      </div>
+      <div class="podium-score">${item.totals.grandTotal}</div>`;
+      list.appendChild(row);
+    });
+
+    openModal('modalFinish');
+  }
+
+  // ---- PWA Install Prompt & Platform-Aware Instructions ----
+  function isStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function updateInstallMenuLabel() {
+    if (isStandaloneMode()) {
+      $('menuInstallTitle').textContent = 'App Installed ✓';
+      $('menuInstallSub').textContent = 'Running in standalone full-screen mode';
+    } else if (deferredInstallPrompt) {
+      $('menuInstallTitle').textContent = 'Install Yachti App';
+      $('menuInstallSub').textContent = 'One tap to install on this device';
+    } else {
+      $('menuInstallTitle').textContent = 'Install App';
+      $('menuInstallSub').textContent = 'Add to Home Screen for offline play';
+    }
+  }
+
+  async function handleInstallClick() {
+    closeModal('modalMenu');
+    if (isStandaloneMode()) {
+      showToast('Yachti is already installed!');
+      return;
+    }
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      updateInstallMenuLabel();
+      if (choice && choice.outcome === 'accepted') showToast('Installing Yachti…');
+      return;
+    }
+
+    // Platform-aware install guide
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
+    const body = $('installBody');
+
+    if (isIOS) {
+      body.innerHTML = `<div class="checklist-box"><b>Install on iPhone / iPad (Safari):</b>
+        <ol>
+          <li>Tap the <b>Share</b> button at the bottom of Safari.</li>
+          <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+          <li>Tap <b>Add</b> — Yachti will launch full-screen and work offline!</li>
+        </ol></div>`;
+    } else if (isAndroid) {
+      body.innerHTML = `<div class="checklist-box"><b>Install on Android (Chrome):</b>
+        <ol>
+          <li>Tap the browser menu (<b>⋮</b>) in the top-right corner.</li>
+          <li>Tap <b>Install app</b> or <b>Add to Home screen</b>.</li>
+          <li>Confirm <b>Install</b> — Yachti will appear in your app drawer and work offline!</li>
+        </ol></div>`;
+    } else {
+      body.innerHTML = `<div class="checklist-box"><b>Install on Desktop (Chrome / Edge):</b>
+        <ol>
+          <li>Click the <b>Install</b> icon in the right side of the address bar.</li>
+          <li>Or open the browser menu (<b>⋮</b> / <b>⋯</b>) → <b>Save and share / Apps</b> → <b>Install Yachti</b>.</li>
+          <li>Launches in its own window and works 100% offline.</li>
+        </ol></div>`;
+    }
+    openModal('modalInstall');
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    updateInstallMenuLabel();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    updateInstallMenuLabel();
+    showToast('Yachti installed!');
+  });
+
+  // ---- Event Wiring ----
+  function wireUI() {
+    // Modal close buttons & backdrop clicks
+    document.querySelectorAll('[data-close]').forEach(btn => {
+      btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
+    });
+    document.querySelectorAll('.modal-backdrop').forEach(bd => {
+      bd.addEventListener('click', (e) => { if (e.target === bd) closeModal(bd.id); });
+    });
+
+    // HUD Buttons
+    $('btnMenu').addEventListener('click', () => { updateInstallMenuLabel(); openModal('modalMenu'); });
+    $('btnSyncPill').addEventListener('click', () => openLinkModal('online'));
+    $('btnUndo').addEventListener('click', triggerUndo);
+    $('btnViewToggle').addEventListener('click', () => {
+      const currentlyFocus = shouldShowFocusView();
+      userViewOverride = currentlyFocus ? 'all' : 'focus';
+      renderAll();
+    });
+    $('btnMute').addEventListener('click', () => {
+      const next = Prefs.muted;
+      Prefs.sound = next;
+      Prefs.haptics = next;
+      renderHUDAndControls();
+      showToast(next ? 'Sound & haptics on' : 'Muted');
+    });
+
+    // Turn Override & Arena Controls
+    $('btnOverride').addEventListener('click', () => {
+      localOverrideActive = true;
+      renderAll();
+      showToast(`Controlling ${state.players[state.activePlayerIndex].name}'s turn`);
+    });
+    $('btnRoll').addEventListener('click', triggerRoll);
+    $('btnReleaseAll').addEventListener('click', releaseAllHeldDice);
+
+    // Delegated Scorecard Clicks (Instant Single-Tap Scoring, Quick Pick, Inline Rename, Manual +100 Bonus)
+    $('scoreTable').addEventListener('click', (e) => {
+      const commitBtn = e.target.closest('[data-commit]');
+      if (commitBtn) {
+        const [pIdx, catKey, scoreVal, grantBonus] = commitBtn.getAttribute('data-commit').split(':');
+        commitScore(parseInt(pIdx, 10), catKey, parseInt(scoreVal, 10), { grantYachtiBonus: grantBonus === '1' });
+        return;
+      }
+      const qpBtn = e.target.closest('[data-quick-pick]');
+      if (qpBtn) {
+        const [pIdx, catKey] = qpBtn.getAttribute('data-quick-pick').split(':');
+        openQuickPicker(parseInt(pIdx, 10), catKey);
+        return;
+      }
+      const ybBtn = e.target.closest('[data-add-yb]');
+      if (ybBtn) {
+        addManualYachtiBonus(parseInt(ybBtn.getAttribute('data-add-yb'), 10));
+        return;
+      }
+      const editTh = e.target.closest('[data-edit-player]');
+      if (editTh) {
+        editingPlayerIndex = parseInt(editTh.getAttribute('data-edit-player'), 10);
+        const p = state.players[editingPlayerIndex];
+        if (!p) return;
+        $('inputEditName').value = p.name;
+        openModal('modalEditName');
+        setTimeout(() => { $('inputEditName').focus(); $('inputEditName').select(); }, 40);
+      }
+    });
+
+    // Inline Player Name Save
+    $('btnSavePlayerName').addEventListener('click', saveEditedName);
+    $('inputEditName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveEditedName(); });
+    function saveEditedName() {
+      if (editingPlayerIndex < 0 || !state.players[editingPlayerIndex]) return;
+      const val = $('inputEditName').value.trim().slice(0, 18);
+      if (!val) return;
+      const p = state.players[editingPlayerIndex];
+      p.name = val;
+      p.nameUpdatedAt = Date.now();
+      saveStateLocal();
+      SyncEngine.sendPacket({ type: 'NAME_UPDATE', playerId: p.id, name: p.name, nameUpdatedAt: p.nameUpdatedAt });
+      closeModal('modalEditName');
+      renderAll();
+    }
+
+    // Menu Items
+    $('menuNewGame').addEventListener('click', () => { closeModal('modalMenu'); openSetupModal(); });
+    $('menuModeSwitch').addEventListener('click', () => {
+      closeModal('modalMenu');
+      state.mode = state.mode === '3d' ? 'scorecard' : '3d';
+      state.turnSeq++;
+      broadcastFullState();
+      renderAll();
+      if (state.mode === '3d') {
+        setTimeout(() => { DiceEngine.computeLayout(); DiceEngine.syncFromState(state.turnState, true); }, 30);
+      }
+      showToast(state.mode === '3d' ? 'Switched to 3D Yachti' : 'Switched to Digital Scorecard');
+    });
+    $('menuLink').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal('online'); });
+    $('menuAirplane').addEventListener('click', () => { closeModal('modalMenu'); openLinkModal('airplane'); });
+    $('menuSeat').addEventListener('click', () => { closeModal('modalMenu'); openSeatPicker(); });
+    $('menuAudioToggle').addEventListener('click', () => { Prefs.sound = !Prefs.sound; renderHUDAndControls(); });
+    $('menuHapticsToggle').addEventListener('click', () => { Prefs.haptics = !Prefs.haptics; renderHUDAndControls(); });
+    $('menuInstall').addEventListener('click', handleInstallClick);
+
+    // Setup Modal
+    $('setupMode3d').addEventListener('click', () => { setupDraft.mode = '3d'; renderSetupModal(); });
+    $('setupModeCard').addEventListener('click', () => { setupDraft.mode = 'scorecard'; renderSetupModal(); });
+    $('btnSetupStart').addEventListener('click', applySetupNewGame);
+    $('btnSetupJoinRoom').addEventListener('click', () => { closeModal('modalSetup'); openLinkModal('online'); });
+
+    // Link / Invite & Airplane Tabs
+    $('tabOnlineSync').addEventListener('click', () => switchLinkTab('online'));
+    $('tabAirplaneSync').addEventListener('click', () => switchLinkTab('airplane'));
+    $('btnCreateRoom').addEventListener('click', createLiveRoom);
+    $('btnLeaveRoom').addEventListener('click', () => {
+      SyncEngine.disconnect();
+      state.roomId = 'LOCAL';
+      state.sessionToken = randomHex(16);
+      history.replaceState(null, '', location.pathname);
+      saveStateLocal();
+      updateSyncModalUI();
+      showToast('Switched to Local play');
+    });
+    $('btnCopyLink').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(buildShareUrl());
+        showToast('Invite link copied!');
+      } catch (_) {
+        showToast('Room Code: ' + state.roomId);
+      }
+    });
+    $('btnShareLink').addEventListener('click', async () => {
+      const url = buildShareUrl();
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Join my Yachti game', text: `Room Code: ${state.roomId}`, url });
+          return;
+        } catch (_) {}
+      }
+      try { await navigator.clipboard.writeText(url); showToast('Invite link copied!'); } catch (_) {}
+    });
+    $('btnJoinRoom').addEventListener('click', () => handleJoinRoomInput($('inputJoinCode').value));
+    $('inputJoinCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleJoinRoomInput($('inputJoinCode').value); });
+    $('btnScanOnlineQr').addEventListener('click', () => startQrScanner((val) => handleJoinRoomInput(val)));
+
+    // Airplane Sync Buttons
+    $('btnAirHost').addEventListener('click', startAirplaneHost);
+    $('btnAirGuest').addEventListener('click', startAirplaneGuest);
+    $('btnCopyAirOffer').addEventListener('click', async () => {
+      if (!lastAirOfferCode) return;
+      try { await navigator.clipboard.writeText(lastAirOfferCode); showToast('Offer code copied!'); } catch (_) {}
+    });
+    $('btnCopyAirAnswer').addEventListener('click', async () => {
+      if (!lastAirAnswerCode) return;
+      try { await navigator.clipboard.writeText(lastAirAnswerCode); showToast('Answer code copied!'); } catch (_) {}
+    });
+    $('btnHostScanAnswer').addEventListener('click', () => startQrScanner((val) => handleHostApplyAnswer(val)));
+    $('btnGuestScanOffer').addEventListener('click', () => startQrScanner((val) => handleGuestApplyOffer(val)));
+    $('btnApplyAirAnswer').addEventListener('click', () => handleHostApplyAnswer($('inputAirAnswer').value));
+    $('btnApplyAirOffer').addEventListener('click', () => handleGuestApplyOffer($('inputAirOffer').value));
+    $('btnStopScanner').addEventListener('click', stopQrScanner);
+    $('btnAirPassFallback').addEventListener('click', () => {
+      closeModal('modalLink');
+      openSetupModal();
+    });
+
+    // Finish Podium Buttons
+    $('btnPlayAgain').addEventListener('click', playAgainSamePlayers);
+    $('btnFinishNew').addEventListener('click', () => { closeModal('modalFinish'); openSetupModal(); });
+
+    // Global Keyboard Shortcuts (Strictly suspended inside inputs/textareas/selects/contentEditable)
+    document.addEventListener('keydown', (e) => {
+      const ae = document.activeElement;
+      if (ae && (['INPUT', 'TEXTAREA', 'SELECT'].includes(ae.tagName) || ae.isContentEditable)) {
+        return;
+      }
+      if (e.key === 'Escape') {
+        closeAllModals();
+        return;
+      }
+      if (document.querySelector('.modal-backdrop.open')) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        triggerUndo();
+      } else if (e.key === ' ' || e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        triggerRoll();
+      } else if (e.key === 'Tab' && state && state.players.length > 1) {
+        e.preventDefault();
+        userViewOverride = shouldShowFocusView() ? 'all' : 'focus';
+        renderAll();
+      } else if (/^[1-5]$/.test(e.key) && state && state.mode === '3d') {
+        const idx = parseInt(e.key, 10) - 1;
+        if (isActivePlayerControllableLocally() && state.turnState.rollNumber >= 1 && state.turnState.rollNumber < 3 && !DiceEngine.isAnimating()) {
+          const nextHeld = !state.turnState.heldMask[idx];
+          DiceEngine.animateSlide(idx, nextHeld);
+          handleHoldMove(idx, nextHeld);
+        }
+      }
+    });
+  }
+
+  // ---- App Boot ----
+  function boot() {
+    // Register offline Service Worker
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    const hashRoom = parseRoomHash();
+    const saved = loadStateLocal();
+
+    if (hashRoom) {
+      if (saved && saved.roomId === hashRoom.roomId && saved.sessionToken === hashRoom.sessionToken) {
+        state = saved;
+      } else {
+        state = createCanonicalState({ playerNames: ['Player 1', 'Player 2'], mode: '3d', roomId: hashRoom.roomId, sessionToken: hashRoom.sessionToken });
+        state.turnSeq = 0;
+      }
+    } else if (saved) {
+      state = saved;
+    } else {
+      state = createCanonicalState({ playerNames: ['Player 1', 'Player 2'], mode: '3d', roomId: 'LOCAL' });
+    }
+
+    DiceEngine.init($('diceCanvas'), {
+      canInteract: () => state && state.mode === '3d' && state.gameStatus === 'active' &&
+        isActivePlayerControllableLocally() && state.turnState.rollNumber >= 1 && state.turnState.rollNumber < 3,
+      canRollTap: () => state && state.mode === '3d' && state.gameStatus === 'active' &&
+        isActivePlayerControllableLocally() && state.turnState.rollNumber === 0,
+      onHoldMove: (idx, held) => handleHoldMove(idx, held),
+      onRollTap: () => triggerRoll(),
+      onRollSettled: (payload, wasSnap) => {
+        if (!state) return;
+        state.turnState.animating = false;
+        state.turnState.diceValues = payload.finalValues.slice();
+        if (!wasSnap && isFiveOfKind(payload.finalValues)) {
+          SFX.playYachtiFanfare();
+          showToast('🎉 YACHTI! Five of a kind!');
+        }
+        renderAll();
+      }
+    });
+
+    SyncEngine.init({
+      onPacket: handleRemotePacket,
+      onStatusChange: () => updateSyncModalUI(),
+      getFullState: () => state,
+      onJoinGrantReceived: (roomId, token) => {
+        connectToOnlineRoom(roomId, token, true);
+      }
+    });
+
+    wireUI();
+    DiceEngine.syncFromState(state.turnState, true);
+    renderAll();
+
+    if (state.roomId !== 'LOCAL' && state.sessionToken) {
+      SyncEngine.joinChannel(state.roomId, state.sessionToken, { isAirplane: false });
+      if (hashRoom && getMyClaimedPlayerIndices().length === 0) {
+        setTimeout(() => openSeatPicker(), 1100);
+      }
+    } else if (!saved) {
+      // Fresh first launch: show crisp 1-step setup so user can pick 1-6 players or hit Start immediately
+      openSetupModal();
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
